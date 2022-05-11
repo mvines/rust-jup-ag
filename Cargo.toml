@@ -1,0 +1,20 @@
+[package]
+authors = ["Michael Vines <mvines@gmail.com"]
+categories = ["api-bindings"]
+description = "Unofficial API Binding for Jupiter"
+edition = "2021"
+license = "WTFPL"
+name = "jup-ag"
+readme = "README.md"
+repository = "https://github.com/mvines/rust-jup-ag"
+version = "0.1.0"
+
+[dependencies]
+base64 = "0.13"
+bincode = "1"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+solana-sdk = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["macros", "time"] }
