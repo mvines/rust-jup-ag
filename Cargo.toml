@@ -1,7 +1,7 @@
 [package]
 authors = ["Michael Vines <mvines@gmail.com"]
 categories = ["api-bindings"]
-description = "Unofficial API Binding for Jupiter"
+description = "Unofficial API Binding for Jupiter Aggregator"
 edition = "2021"
 license = "WTFPL"
 name = "jup-ag"

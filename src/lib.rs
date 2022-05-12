@@ -1,4 +1,3 @@
-/// Unofficial API Binding for Jupiter: https://jup.ag
 use {
     serde::{Deserialize, Serialize},
     solana_sdk::{
