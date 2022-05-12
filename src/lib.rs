@@ -8,6 +8,8 @@ use {
     std::collections::HashMap,
 };
 
+mod field_as_string;
+
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -38,9 +40,11 @@ pub struct Response<T> {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
-    pub input_mint: String,
+    #[serde(with = "field_as_string")]
+    pub input_mint: Pubkey,
     pub input_symbol: String,
-    pub output_mint: String,
+    #[serde(with = "field_as_string")]
+    pub output_mint: Pubkey,
     pub output_symbol: String,
     pub amount: u64,
     pub price: f64,
@@ -61,8 +65,10 @@ pub struct Quote {
 pub struct MarketInfo {
     pub id: String,
     pub label: String,
-    pub input_mint: String,
-    pub output_mint: String,
+    #[serde(with = "field_as_string")]
+    pub input_mint: Pubkey,
+    #[serde(with = "field_as_string")]
+    pub output_mint: Pubkey,
     pub not_enough_liquidity: bool,
     pub in_amount: u64,
     pub out_amount: u64,
@@ -75,7 +81,8 @@ pub struct MarketInfo {
 #[serde(rename_all = "camelCase")]
 pub struct FeeInfo {
     pub amount: u64,
-    pub mint: String,
+    #[serde(with = "field_as_string")]
+    pub mint: Pubkey,
     pub pct: f64,
 }
 
