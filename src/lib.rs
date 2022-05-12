@@ -144,21 +144,22 @@ pub async fn quote(
 }
 
 /// Get swap serialized transactions for a quote
-pub async fn swap(quote: Quote, user_public_key: Pubkey) -> Result<Swap> {
+pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
     let url = "https://quote-api.jup.ag/v1/swap";
 
-    #[derive(Serialize)]
+    #[derive(Debug, Serialize)]
     #[serde(rename_all = "camelCase")]
     #[allow(non_snake_case)]
     struct SwapRequest {
-        quote: Quote,
+        route: Quote,
         wrap_unwrap_SOL: bool,
         fee_account: Option<String>,
         token_ledger: Option<String>,
-        user_public_key: String,
+        #[serde(with = "field_as_string")]
+        user_public_key: Pubkey,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct SwapResponse {
         setup_transaction: Option<String>,
@@ -167,11 +168,11 @@ pub async fn swap(quote: Quote, user_public_key: Pubkey) -> Result<Swap> {
     }
 
     let request = SwapRequest {
-        quote,
+        route,
         wrap_unwrap_SOL: true,
         fee_account: None,
         token_ledger: None,
-        user_public_key: user_public_key.to_string(),
+        user_public_key,
     };
 
     let response = reqwest::Client::builder()
@@ -180,6 +181,7 @@ pub async fn swap(quote: Quote, user_public_key: Pubkey) -> Result<Swap> {
         .json(&request)
         .send()
         .await?
+        .error_for_status()?
         .json::<SwapResponse>()
         .await?;
 
