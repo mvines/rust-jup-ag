@@ -79,7 +79,7 @@ pub struct MarketInfo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeeInfo {
-    pub amount: u64,
+    pub amount: f64,
     #[serde(with = "field_as_string")]
     pub mint: Pubkey,
     pub pct: f64,
@@ -100,11 +100,11 @@ pub type RouteMap = HashMap<Pubkey, Vec<Pubkey>>;
 pub async fn price(
     input_mint: Pubkey,
     output_mint: Pubkey,
-    amount: f64,
+    ui_amount: f64,
 ) -> Result<Response<Price>> {
     let url = format!(
         "https://quote-api.jup.ag/v1/price?inputMint={}&outputMint={}&amount={}",
-        input_mint, output_mint, amount,
+        input_mint, output_mint, ui_amount,
     );
     reqwest::get(url)
         .await?
