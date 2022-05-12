@@ -1,5 +1,5 @@
 # jup-ag
-Unofficial Rust API bindings for [Jupiter Aggregator](https://jup.ag/).
+[Jupiter Aggregator](https://jup.ag/) API bindings for Rust
 
 The full [Jupiter API v1](https://quote-api.jup.ag/docs/static/index.html) is
 supported. Basic examples can be found in the `example/` directory.
