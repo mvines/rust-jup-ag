@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?
     .data;
 
-    let quote = quotes.get(1).ok_or("No quotes found for SOL to mSOL")?;
+    let quote = quotes.get(0).ok_or("No quotes found for SOL to mSOL")?;
 
     let route = quote
         .market_infos
