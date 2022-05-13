@@ -143,8 +143,19 @@ pub async fn quote(
         .map_err(|err| err.into())
 }
 
-/// Get swap serialized transactions for a quote
-pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
+#[derive(Default)]
+pub struct SwapConfig {
+    pub wrap_unwrap_sol: Option<bool>,
+    pub fee_account: Option<Pubkey>,
+    pub token_ledger: Option<Pubkey>,
+}
+
+/// Get swap serialized transactions for a quote using `SwapConfig` defaults
+pub async fn swap_with_config(
+    route: Quote,
+    user_public_key: Pubkey,
+    swap_config: SwapConfig,
+) -> Result<Swap> {
     let url = "https://quote-api.jup.ag/v1/swap";
 
     #[derive(Debug, Serialize)]
@@ -152,7 +163,7 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
     #[allow(non_snake_case)]
     struct SwapRequest {
         route: Quote,
-        wrap_unwrap_SOL: bool,
+        wrap_unwrap_SOL: Option<bool>,
         fee_account: Option<String>,
         token_ledger: Option<String>,
         #[serde(with = "field_as_string")]
@@ -169,9 +180,9 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
 
     let request = SwapRequest {
         route,
-        wrap_unwrap_SOL: true,
-        fee_account: None,
-        token_ledger: None,
+        wrap_unwrap_SOL: swap_config.wrap_unwrap_sol,
+        fee_account: swap_config.fee_account.map(|x| x.to_string()),
+        token_ledger: swap_config.token_ledger.map(|x| x.to_string()),
         user_public_key,
     };
 
@@ -194,6 +205,11 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
         swap: decode(response.swap_transaction)?,
         cleanup: response.cleanup_transaction.map(decode).transpose()?,
     })
+}
+
+/// Get swap serialized transactions for a quote
+pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
+    swap_with_config(route, user_public_key, SwapConfig::default()).await
 }
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values
