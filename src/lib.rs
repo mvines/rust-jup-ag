@@ -26,6 +26,12 @@ pub enum Error {
 
     #[error("bincode: {0}")]
     Bincode(#[from] bincode::Error),
+
+    #[error("Jupiter API: {0}")]
+    JupiterApi(String),
+
+    #[error("serde_json: {0}")]
+    SerdeJson(#[from] serde_json::Error),
 }
 
 /// Generic response with timing information
@@ -96,6 +102,21 @@ pub struct Swap {
 /// Hashmap of possible swap routes from input mint to an array of output mints
 pub type RouteMap = HashMap<Pubkey, Vec<Pubkey>>;
 
+fn maybe_jupiter_api_error<T>(value: serde_json::Value) -> Result<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    #[derive(Deserialize)]
+    struct ErrorResponse {
+        message: String,
+    }
+    if let Ok(ErrorResponse { message }) = serde_json::from_value::<ErrorResponse>(value.clone()) {
+        Err(Error::JupiterApi(message))
+    } else {
+        serde_json::from_value(value).map_err(|err| err.into())
+    }
+}
+
 /// Get simple price for a given input mint, output mint and amount
 pub async fn price(
     input_mint: Pubkey,
@@ -106,11 +127,7 @@ pub async fn price(
         "https://quote-api.jup.ag/v1/price?inputMint={}&outputMint={}&amount={}",
         input_mint, output_mint, ui_amount,
     );
-    reqwest::get(url)
-        .await?
-        .json()
-        .await
-        .map_err(|err| err.into())
+    maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
 /// Get quote for a given input mint, output mint and amount
@@ -136,11 +153,7 @@ pub async fn quote(
             .unwrap_or_default(),
     );
 
-    reqwest::get(url)
-        .await?
-        .json()
-        .await
-        .map_err(|err| err.into())
+    maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
 #[derive(Default)]
@@ -186,15 +199,17 @@ pub async fn swap_with_config(
         user_public_key,
     };
 
-    let response = reqwest::Client::builder()
-        .build()?
-        .post(url)
-        .json(&request)
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<SwapResponse>()
-        .await?;
+    let response = maybe_jupiter_api_error::<SwapResponse>(
+        reqwest::Client::builder()
+            .build()?
+            .post(url)
+            .json(&request)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?,
+    )?;
 
     fn decode(base64_transaction: String) -> Result<Transaction> {
         bincode::deserialize(&base64::decode(base64_transaction)?).map_err(|err| err.into())
