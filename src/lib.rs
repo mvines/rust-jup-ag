@@ -108,10 +108,10 @@ where
 {
     #[derive(Deserialize)]
     struct ErrorResponse {
-        message: String,
+        error: String,
     }
-    if let Ok(ErrorResponse { message }) = serde_json::from_value::<ErrorResponse>(value.clone()) {
-        Err(Error::JupiterApi(message))
+    if let Ok(ErrorResponse { error }) = serde_json::from_value::<ErrorResponse>(value.clone()) {
+        Err(Error::JupiterApi(error))
     } else {
         serde_json::from_value(value).map_err(|err| err.into())
     }
