@@ -163,7 +163,7 @@ pub struct SwapConfig {
     pub token_ledger: Option<Pubkey>,
 }
 
-/// Get swap serialized transactions for a quote using `SwapConfig` defaults
+/// Get swap serialized transactions for a quote
 pub async fn swap_with_config(
     route: Quote,
     user_public_key: Pubkey,
@@ -222,7 +222,7 @@ pub async fn swap_with_config(
     })
 }
 
-/// Get swap serialized transactions for a quote
+/// Get swap serialized transactions for a quote using `SwapConfig` defaults
 pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
     swap_with_config(route, user_public_key, SwapConfig::default()).await
 }
