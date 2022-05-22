@@ -15,13 +15,13 @@ bincode = "1"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-solana-sdk = "1.10"
+solana-sdk = "1"
 thiserror = "1"
 tokio = "1"
 
 [dev-dependencies]
 itertools = "0.10"
 tokio = {version = "1", features = ["full"]}
-solana-client = "1.10"
+solana-client = "1"
 spl-associated-token-account = "1"
 spl-token = "3"
