@@ -45,13 +45,14 @@ pub struct Response<T> {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
-    #[serde(with = "field_as_string")]
+    #[serde(with = "field_as_string", rename = "id")]
     pub input_mint: Pubkey,
+    #[serde(rename = "mintSymbol")]
     pub input_symbol: String,
-    #[serde(with = "field_as_string")]
+    #[serde(with = "field_as_string", rename = "vsToken")]
     pub output_mint: Pubkey,
+    #[serde(rename = "vsTokenSymbol")]
     pub output_symbol: String,
-    pub amount: u64,
     pub price: f64,
 }
 
@@ -124,7 +125,7 @@ pub async fn price(
     ui_amount: f64,
 ) -> Result<Response<Price>> {
     let url = format!(
-        "https://quote-api.jup.ag/v1/price?inputMint={}&outputMint={}&amount={}",
+        "https://quote-api.jup.ag/v1/price?id={}&vsToken={}&amount={}",
         input_mint, output_mint, ui_amount,
     );
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)

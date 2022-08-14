@@ -16,7 +16,7 @@ async fn main() -> jup_ag::Result<()> {
         let data = jup_ag::price(sol, output_token, ui_amount).await?.data;
         println!(
             "Price for {} {} is {} {}",
-            data.amount, data.input_symbol, data.price, data.output_symbol
+            ui_amount, data.input_symbol, data.price, data.output_symbol
         );
 
         let slippage = 1.;
