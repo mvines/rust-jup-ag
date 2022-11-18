@@ -12,6 +12,9 @@ mod field_as_string;
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
+const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v3";
+const PRICE_API_URL: &str = "https://price.jup.ag/v1";
+
 /// The Errors that may occur while using this crate
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -59,11 +62,18 @@ pub struct Price {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Quote {
+    #[serde(with = "field_as_string")]
     pub in_amount: u64,
+    #[serde(with = "field_as_string")]
     pub out_amount: u64,
-    pub out_amount_with_slippage: u64,
     pub price_impact_pct: f64,
     pub market_infos: Vec<MarketInfo>,
+    #[serde(with = "field_as_string")]
+    pub amount: u64,
+    pub slippage_bps: u8,
+    #[serde(with = "field_as_string")]
+    pub other_amount_threshold: u64,
+    pub swap_mode: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -76,7 +86,9 @@ pub struct MarketInfo {
     #[serde(with = "field_as_string")]
     pub output_mint: Pubkey,
     pub not_enough_liquidity: bool,
+    #[serde(with = "field_as_string")]
     pub in_amount: u64,
+    #[serde(with = "field_as_string")]
     pub out_amount: u64,
     pub price_impact_pct: f64,
     pub lp_fee: FeeInfo,
@@ -86,7 +98,8 @@ pub struct MarketInfo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeeInfo {
-    pub amount: f64,
+    #[serde(with = "field_as_string")]
+    pub amount: u64,
     #[serde(with = "field_as_string")]
     pub mint: Pubkey,
     pub pct: f64,
@@ -125,7 +138,8 @@ pub async fn price(
     ui_amount: f64,
 ) -> Result<Response<Price>> {
     let url = format!(
-        "https://quote-api.jup.ag/v1/price?id={}&vsToken={}&amount={}",
+        "{}/price?id={}&vsToken={}&amount={}",
+        PRICE_API_URL,
         input_mint, output_mint, ui_amount,
     );
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
@@ -141,7 +155,8 @@ pub async fn quote(
     fees_bps: Option<f64>,
 ) -> Result<Response<Vec<Quote>>> {
     let url = format!(
-        "https://quote-api.jup.ag/v1/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&{}{}",
+        "{}/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&{}{}",
+        QUOTE_API_URL,
         input_mint,
         output_mint,
         amount,
@@ -161,7 +176,6 @@ pub async fn quote(
 pub struct SwapConfig {
     pub wrap_unwrap_sol: Option<bool>,
     pub fee_account: Option<Pubkey>,
-    pub token_ledger: Option<Pubkey>,
 }
 
 /// Get swap serialized transactions for a quote
@@ -170,7 +184,7 @@ pub async fn swap_with_config(
     user_public_key: Pubkey,
     swap_config: SwapConfig,
 ) -> Result<Swap> {
-    let url = "https://quote-api.jup.ag/v1/swap";
+    let url = format!("{}/swap", QUOTE_API_URL);
 
     #[derive(Debug, Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -179,7 +193,6 @@ pub async fn swap_with_config(
         route: Quote,
         wrap_unwrap_SOL: Option<bool>,
         fee_account: Option<String>,
-        token_ledger: Option<String>,
         #[serde(with = "field_as_string")]
         user_public_key: Pubkey,
     }
@@ -196,7 +209,6 @@ pub async fn swap_with_config(
         route,
         wrap_unwrap_SOL: swap_config.wrap_unwrap_sol,
         fee_account: swap_config.fee_account.map(|x| x.to_string()),
-        token_ledger: swap_config.token_ledger.map(|x| x.to_string()),
         user_public_key,
     };
 
@@ -231,7 +243,8 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
 /// Returns a hash map, input mint as key and an array of valid output mint as values
 pub async fn route_map(only_direct_routes: bool) -> Result<RouteMap> {
     let url = format!(
-        "https://quote-api.jup.ag/v1/indexed-route-map?onlyDirectRoutes={}",
+        "{}/indexed-route-map?onlyDirectRoutes={}",
+        QUOTE_API_URL,
         only_direct_routes
     );
 
