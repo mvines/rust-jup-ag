@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         amount_to_ui_amount(quote.in_amount, 9),
         amount_to_ui_amount(quote.out_amount, 9),
         route,
-        amount_to_ui_amount(quote.out_amount_with_slippage, 9),
+        amount_to_ui_amount(quote.other_amount_threshold, 9),
         quote.price_impact_pct * 100.
     );
 

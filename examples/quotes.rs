@@ -47,7 +47,7 @@ async fn main() -> jup_ag::Result<()> {
                 amount_to_ui_amount(quote.out_amount, output_decimals),
                 data.output_symbol,
                 route,
-                amount_to_ui_amount(quote.out_amount_with_slippage, output_decimals),
+                amount_to_ui_amount(quote.other_amount_threshold, output_decimals),
                 quote.price_impact_pct * 100.
             );
         }
