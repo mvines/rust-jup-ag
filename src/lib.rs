@@ -139,8 +139,7 @@ pub async fn price(
 ) -> Result<Response<Price>> {
     let url = format!(
         "{}/price?id={}&vsToken={}&amount={}",
-        PRICE_API_URL,
-        input_mint, output_mint, ui_amount,
+        PRICE_API_URL, input_mint, output_mint, ui_amount,
     );
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
@@ -244,8 +243,7 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
 pub async fn route_map(only_direct_routes: bool) -> Result<RouteMap> {
     let url = format!(
         "{}/indexed-route-map?onlyDirectRoutes={}",
-        QUOTE_API_URL,
-        only_direct_routes
+        QUOTE_API_URL, only_direct_routes
     );
 
     #[derive(Debug, Deserialize)]
