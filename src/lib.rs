@@ -12,8 +12,8 @@ mod field_as_string;
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v3";
-const PRICE_API_URL: &str = "https://price.jup.ag/v1";
+const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v3"; // Reference: https://quote-api.jup.ag/v3/docs/static/index.html
+const PRICE_API_URL: &str = "https://price.jup.ag/v1"; // Reference: https://quote-api.jup.ag/docs/static/index.html
 
 /// The Errors that may occur while using this crate
 #[derive(thiserror::Error, Debug)]
@@ -70,7 +70,7 @@ pub struct Quote {
     pub market_infos: Vec<MarketInfo>,
     #[serde(with = "field_as_string")]
     pub amount: u64,
-    pub slippage_bps: u8,
+    pub slippage_bps: u64,
     #[serde(with = "field_as_string")]
     pub other_amount_threshold: u64,
     pub swap_mode: String,
@@ -150,18 +150,20 @@ pub async fn quote(
     output_mint: Pubkey,
     amount: u64,
     only_direct_routes: bool,
-    slippage: Option<f64>,
+    enforce_single_tx: bool,
+    slippage_bps: Option<f64>,
     fees_bps: Option<f64>,
 ) -> Result<Response<Vec<Quote>>> {
     let url = format!(
-        "{}/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&{}{}",
+        "{}/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&enforceSingleTx={}{}{}",
         QUOTE_API_URL,
         input_mint,
         output_mint,
         amount,
         only_direct_routes,
-        slippage
-            .map(|slippage| format!("&slippage={}", slippage))
+        enforce_single_tx,
+        slippage_bps
+            .map(|slippage_bps| format!("&slippageBps={}", slippage_bps))
             .unwrap_or_default(),
         fees_bps
             .map(|fees_bps| format!("&feesBps={}", fees_bps))
