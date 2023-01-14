@@ -12,7 +12,7 @@ mod field_as_string;
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v3"; // Reference: https://quote-api.jup.ag/v3/docs/static/index.html
+const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v4"; // Reference: https://quote-api.jup.ag/v4/docs/static/index.html
 const PRICE_API_URL: &str = "https://price.jup.ag/v1"; // Reference: https://quote-api.jup.ag/docs/static/index.html
 
 /// The Errors that may occur while using this crate
@@ -144,28 +144,38 @@ pub async fn price(
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
+#[derive(Default)]
+pub struct QuoteConfig {
+    pub only_direct_routes: bool,
+    pub slippage_bps: Option<f64>,
+    pub fees_bps: Option<f64>,
+    pub as_legacy_transaction: Option<bool>,
+}
+
 /// Get quote for a given input mint, output mint and amount
 pub async fn quote(
     input_mint: Pubkey,
     output_mint: Pubkey,
     amount: u64,
-    only_direct_routes: bool,
-    enforce_single_tx: bool,
-    slippage_bps: Option<f64>,
-    fees_bps: Option<f64>,
+    quote_config: QuoteConfig,
 ) -> Result<Response<Vec<Quote>>> {
     let url = format!(
-        "{}/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&enforceSingleTx={}{}{}",
+        "{}/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&{}{}{}",
         QUOTE_API_URL,
         input_mint,
         output_mint,
         amount,
-        only_direct_routes,
-        enforce_single_tx,
-        slippage_bps
+        quote_config.only_direct_routes,
+        quote_config
+            .as_legacy_transaction
+            .map(|as_legacy_transaction| format!("&asLegacyTransaction={}", as_legacy_transaction))
+            .unwrap_or_default(),
+        quote_config
+            .slippage_bps
             .map(|slippage_bps| format!("&slippageBps={}", slippage_bps))
             .unwrap_or_default(),
-        fees_bps
+        quote_config
+            .fees_bps
             .map(|fees_bps| format!("&feesBps={}", fees_bps))
             .unwrap_or_default(),
     );
@@ -177,6 +187,8 @@ pub async fn quote(
 pub struct SwapConfig {
     pub wrap_unwrap_sol: Option<bool>,
     pub fee_account: Option<Pubkey>,
+    pub compute_unit_price_micro_lamports: Option<usize>,
+    pub as_legacy_transaction: bool,
 }
 
 /// Get swap serialized transactions for a quote
@@ -196,6 +208,8 @@ pub async fn swap_with_config(
         fee_account: Option<String>,
         #[serde(with = "field_as_string")]
         user_public_key: Pubkey,
+        as_legacy_transaction: bool,
+        compute_unit_price_micro_lamports: Option<usize>,
     }
 
     #[derive(Debug, Deserialize)]
@@ -211,6 +225,8 @@ pub async fn swap_with_config(
         wrap_unwrap_SOL: swap_config.wrap_unwrap_sol,
         fee_account: swap_config.fee_account.map(|x| x.to_string()),
         user_public_key,
+        as_legacy_transaction: true,
+        compute_unit_price_micro_lamports: swap_config.compute_unit_price_micro_lamports,
     };
 
     let response = maybe_jupiter_api_error::<SwapResponse>(
@@ -242,11 +258,8 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
 }
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values
-pub async fn route_map(only_direct_routes: bool) -> Result<RouteMap> {
-    let url = format!(
-        "{}/indexed-route-map?onlyDirectRoutes={}",
-        QUOTE_API_URL, only_direct_routes
-    );
+pub async fn route_map() -> Result<RouteMap> {
+    let url = format!("{}/indexed-route-map?onlyDirectRoutes=false", QUOTE_API_URL);
 
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
