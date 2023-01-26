@@ -1,3 +1,5 @@
+use jup_ag::QuoteConfig;
+
 use {
     itertools::Itertools,
     solana_client::nonblocking::rpc_client::RpcClient,
@@ -26,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let rpc_client = RpcClient::new_with_commitment(
-        "https://solana-api.projectserum.com".into(),
+        "https://api.metaplex.solana.com".into(),
         CommitmentConfig::confirmed(),
     );
 
@@ -54,9 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sol,
         msol,
         ui_amount_to_amount(0.01, 9),
-        only_direct_routes,
-        Some(slippage),
-        None,
+        QuoteConfig {
+            only_direct_routes,
+            slippage_bps: Some(slippage),
+            fees_bps: None,
+            as_legacy_transaction: None,
+        },
     )
     .await?
     .data;

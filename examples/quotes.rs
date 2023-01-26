@@ -1,3 +1,5 @@
+use jup_ag::QuoteConfig;
+
 use {
     itertools::Itertools,
     solana_sdk::pubkey,
@@ -25,9 +27,12 @@ async fn main() -> jup_ag::Result<()> {
             sol,
             output_token,
             ui_amount_to_amount(ui_amount, 9),
-            only_direct_routes,
-            Some(slippage),
-            None,
+            QuoteConfig {
+                only_direct_routes,
+                slippage_bps: Some(slippage),
+                fees_bps: None,
+                as_legacy_transaction: None,
+            },
         )
         .await?
         .data;
