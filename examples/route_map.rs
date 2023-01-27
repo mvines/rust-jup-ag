@@ -12,7 +12,7 @@ async fn main() -> jup_ag::Result<()> {
         sol_output_tokens.len()
     );
     for output_token in route_map.get(&sol).expect("SOL").iter() {
-        println!("- {}", output_token);
+        println!("- {output_token}");
     }
 
     Ok(())
