@@ -1,3 +1,5 @@
+use jup_ag::QuoteConfig;
+
 use {
     itertools::Itertools,
     solana_client::nonblocking::rpc_client::RpcClient,
@@ -16,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let keypair = read_keypair_file("swap_example.json").unwrap_or_else(|err| {
         println!("------------------------------------------------------------------------------------------------");
-        println!("Failed to read `swap_example.json`: {}", err);
+        println!("Failed to read `swap_example.json`: {err}");
         println!();
         println!("An ephemeral keypair will be used instead. For a more realistic example, create a new keypair at");
         println!("that location and fund it with a small amount of SOL.");
@@ -26,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let rpc_client = RpcClient::new_with_commitment(
-        "https://solana-api.projectserum.com".into(),
+        "https://api.metaplex.solana.com".into(),
         CommitmentConfig::confirmed(),
     );
 
@@ -54,9 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sol,
         msol,
         ui_amount_to_amount(0.01, 9),
-        only_direct_routes,
-        Some(slippage),
-        None,
+        QuoteConfig {
+            only_direct_routes,
+            slippage_bps: Some(slippage),
+            fees_bps: None,
+            as_legacy_transaction: None,
+        },
     )
     .await?
     .data;

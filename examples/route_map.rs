@@ -2,8 +2,7 @@
 async fn main() -> jup_ag::Result<()> {
     let sol = solana_sdk::pubkey!("So11111111111111111111111111111111111111112");
 
-    let only_direct_routes = false;
-    let route_map = jup_ag::route_map(only_direct_routes).await?;
+    let route_map = jup_ag::route_map().await?;
 
     println!("{} supported input tokens", route_map.len());
 
@@ -13,7 +12,7 @@ async fn main() -> jup_ag::Result<()> {
         sol_output_tokens.len()
     );
     for output_token in route_map.get(&sol).expect("SOL").iter() {
-        println!("- {}", output_token);
+        println!("- {output_token}");
     }
 
     Ok(())
