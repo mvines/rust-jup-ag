@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let keypair = read_keypair_file("swap_example.json").unwrap_or_else(|err| {
         println!("------------------------------------------------------------------------------------------------");
-        println!("Failed to read `swap_example.json`: {}", err);
+        println!("Failed to read `swap_example.json`: {err}");
         println!();
         println!("An ephemeral keypair will be used instead. For a more realistic example, create a new keypair at");
         println!("that location and fund it with a small amount of SOL.");
