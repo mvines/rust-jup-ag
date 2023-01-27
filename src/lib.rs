@@ -138,8 +138,7 @@ pub async fn price(
     ui_amount: f64,
 ) -> Result<Response<Price>> {
     let url = format!(
-        "{}/price?id={}&vsToken={}&amount={}",
-        PRICE_API_URL, input_mint, output_mint, ui_amount,
+        "{PRICE_API_URL}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}",
     );
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
@@ -168,15 +167,15 @@ pub async fn quote(
         quote_config.only_direct_routes,
         quote_config
             .as_legacy_transaction
-            .map(|as_legacy_transaction| format!("&asLegacyTransaction={}", as_legacy_transaction))
+            .map(|as_legacy_transaction| format!("&asLegacyTransaction={as_legacy_transaction}"))
             .unwrap_or_default(),
         quote_config
             .slippage_bps
-            .map(|slippage_bps| format!("&slippageBps={}", slippage_bps))
+            .map(|slippage_bps| format!("&slippageBps={slippage_bps}"))
             .unwrap_or_default(),
         quote_config
             .fees_bps
-            .map(|fees_bps| format!("&feesBps={}", fees_bps))
+            .map(|fees_bps| format!("&feesBps={fees_bps}"))
             .unwrap_or_default(),
     );
 
@@ -197,7 +196,7 @@ pub async fn swap_with_config(
     user_public_key: Pubkey,
     swap_config: SwapConfig,
 ) -> Result<Swap> {
-    let url = format!("{}/swap", QUOTE_API_URL);
+    let url = format!("{QUOTE_API_URL}/swap");
 
     #[derive(Debug, Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -259,7 +258,7 @@ pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values
 pub async fn route_map() -> Result<RouteMap> {
-    let url = format!("{}/indexed-route-map?onlyDirectRoutes=false", QUOTE_API_URL);
+    let url = format!("{QUOTE_API_URL}/indexed-route-map?onlyDirectRoutes=false");
 
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
