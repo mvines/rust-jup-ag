@@ -2,10 +2,7 @@ use solana_sdk::transaction::VersionedTransaction;
 
 use {
     serde::{Deserialize, Serialize},
-    solana_sdk::{
-        pubkey::{ParsePubkeyError, Pubkey},
-        transaction::Transaction,
-    },
+    solana_sdk::pubkey::{ParsePubkeyError, Pubkey},
     std::collections::HashMap,
 };
 
