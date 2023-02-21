@@ -1,4 +1,5 @@
 use jup_ag::QuoteConfig;
+use solana_sdk::transaction::VersionedTransaction;
 
 use {
     itertools::Itertools,
@@ -82,37 +83,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         quote.price_impact_pct * 100.
     );
 
-    let jup_ag::Swap {
-        setup,
-        swap,
-        cleanup,
-    } = jup_ag::swap(quote.clone(), keypair.pubkey()).await?;
+    let jup_ag::Swap { swap_transaction } = jup_ag::swap(quote.clone(), keypair.pubkey()).await?;
 
-    let transactions = [setup, Some(swap), cleanup]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-    println!("\nTransactions to send: {}", transactions.len());
-
-    for (i, mut transaction) in transactions.into_iter().enumerate() {
-        transaction.sign(&[&keypair], transaction.message.recent_blockhash);
-        transaction.verify()?;
-        println!(
-            "Simulating transaction {}: {}",
-            i + 1,
-            transaction.signatures[0]
-        );
-        let response = rpc_client.simulate_transaction(&transaction).await?;
-        println!("  {:#?}", response.value);
-        println!(
-            "Sending transaction {}: {}",
-            i + 1,
-            transaction.signatures[0]
-        );
-        let _ = rpc_client
-            .send_and_confirm_transaction_with_spinner(&transaction)
-            .await?;
-    }
+    let swap_transaction = VersionedTransaction::try_new(swap_transaction.message, &[&keypair])?;
+    println!(
+        "Simulating swap transaction: {}",
+        swap_transaction.signatures[0]
+    );
+    let response = rpc_client.simulate_transaction(&swap_transaction).await?;
+    println!("  {:#?}", response.value);
+    println!("Sending transaction: {}", swap_transaction.signatures[0]);
+    let _ = rpc_client
+        .send_and_confirm_transaction_with_spinner(&swap_transaction)
+        .await?;
 
     println!(
         "Post-swap SOL balance: {}",
