@@ -1,9 +1,8 @@
+use solana_sdk::transaction::VersionedTransaction;
+
 use {
     serde::{Deserialize, Serialize},
-    solana_sdk::{
-        pubkey::{ParsePubkeyError, Pubkey},
-        transaction::Transaction,
-    },
+    solana_sdk::pubkey::{ParsePubkeyError, Pubkey},
     std::collections::HashMap,
 };
 
@@ -108,9 +107,7 @@ pub struct FeeInfo {
 /// Partially signed transactions required to execute a swap
 #[derive(Clone, Debug)]
 pub struct Swap {
-    pub setup: Option<Transaction>,
-    pub swap: Transaction,
-    pub cleanup: Option<Transaction>,
+    pub swap_transaction: VersionedTransaction,
 }
 
 /// Hashmap of possible swap routes from input mint to an array of output mints
@@ -186,7 +183,7 @@ pub struct SwapConfig {
     pub wrap_unwrap_sol: Option<bool>,
     pub fee_account: Option<Pubkey>,
     pub compute_unit_price_micro_lamports: Option<usize>,
-    pub as_legacy_transaction: bool,
+    pub as_legacy_transaction: Option<bool>,
 }
 
 /// Get swap serialized transactions for a quote
@@ -206,16 +203,14 @@ pub async fn swap_with_config(
         fee_account: Option<String>,
         #[serde(with = "field_as_string")]
         user_public_key: Pubkey,
-        as_legacy_transaction: bool,
+        as_legacy_transaction: Option<bool>,
         compute_unit_price_micro_lamports: Option<usize>,
     }
 
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct SwapResponse {
-        setup_transaction: Option<String>,
         swap_transaction: String,
-        cleanup_transaction: Option<String>,
     }
 
     let request = SwapRequest {
@@ -223,7 +218,7 @@ pub async fn swap_with_config(
         wrap_unwrap_SOL: swap_config.wrap_unwrap_sol,
         fee_account: swap_config.fee_account.map(|x| x.to_string()),
         user_public_key,
-        as_legacy_transaction: true,
+        as_legacy_transaction: swap_config.as_legacy_transaction,
         compute_unit_price_micro_lamports: swap_config.compute_unit_price_micro_lamports,
     };
 
@@ -239,14 +234,12 @@ pub async fn swap_with_config(
             .await?,
     )?;
 
-    fn decode(base64_transaction: String) -> Result<Transaction> {
+    fn decode(base64_transaction: String) -> Result<VersionedTransaction> {
         bincode::deserialize(&base64::decode(base64_transaction)?).map_err(|err| err.into())
     }
 
     Ok(Swap {
-        setup: response.setup_transaction.map(decode).transpose()?,
-        swap: decode(response.swap_transaction)?,
-        cleanup: response.cleanup_transaction.map(decode).transpose()?,
+        swap_transaction: decode(response.swap_transaction)?,
     })
 }
 
