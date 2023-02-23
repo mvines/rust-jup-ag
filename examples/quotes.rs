@@ -21,7 +21,7 @@ async fn main() -> jup_ag::Result<()> {
             ui_amount, data.input_symbol, data.price, data.output_symbol
         );
 
-        let slippage = 1.;
+        let slippage_bps = 100;
         let only_direct_routes = false;
         let quotes = jup_ag::quote(
             sol,
@@ -29,9 +29,8 @@ async fn main() -> jup_ag::Result<()> {
             ui_amount_to_amount(ui_amount, 9),
             QuoteConfig {
                 only_direct_routes,
-                slippage_bps: Some(slippage),
-                fees_bps: None,
-                as_legacy_transaction: None,
+                slippage_bps: Some(slippage_bps),
+                ..QuoteConfig::default()
             },
         )
         .await?

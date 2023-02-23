@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
 
-    let slippage = 1.;
+    let slippage_bps = 100;
     let only_direct_routes = false;
     let quotes = jup_ag::quote(
         sol,
@@ -59,9 +59,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ui_amount_to_amount(0.01, 9),
         QuoteConfig {
             only_direct_routes,
-            slippage_bps: Some(slippage),
-            fees_bps: None,
-            as_legacy_transaction: None,
+            slippage_bps: Some(slippage_bps),
+            ..QuoteConfig::default()
         },
     )
     .await?
