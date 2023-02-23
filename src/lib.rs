@@ -1,3 +1,5 @@
+use std::{fmt, str::FromStr};
+
 use solana_sdk::transaction::VersionedTransaction;
 
 use {
@@ -34,6 +36,9 @@ pub enum Error {
 
     #[error("serde_json: {0}")]
     SerdeJson(#[from] serde_json::Error),
+
+    #[error("parse SwapMode: Invalid value `{value}`")]
+    ParseSwapMode { value: String },
 }
 
 /// Generic response with timing information
@@ -139,11 +144,40 @@ pub async fn price(
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
+#[derive(Serialize, Deserialize, Default, PartialEq, Clone, Debug)]
+pub enum SwapMode {
+    #[default]
+    ExactIn,
+    ExactOut,
+}
+
+impl FromStr for SwapMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "ExactIn" => Ok(Self::ExactIn),
+            "ExactOut" => Ok(Self::ExactOut),
+            _ => Err(Error::ParseSwapMode { value: s.into() }),
+        }
+    }
+}
+
+impl fmt::Display for SwapMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Self::ExactIn => write!(f, "ExactIn"),
+            Self::ExactOut => write!(f, "ExactOut"),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct QuoteConfig {
     pub only_direct_routes: bool,
-    pub slippage_bps: Option<f64>,
-    pub fees_bps: Option<f64>,
+    pub slippage_bps: Option<u64>,
+    pub swap_mode: Option<SwapMode>,
+    pub fee_bps: Option<u64>,
     pub as_legacy_transaction: Option<bool>,
 }
 
@@ -155,23 +189,23 @@ pub async fn quote(
     quote_config: QuoteConfig,
 ) -> Result<Response<Vec<Quote>>> {
     let url = format!(
-        "{}/quote?inputMint={}&outputMint={}&amount={}&onlyDirectRoutes={}&{}{}{}",
-        QUOTE_API_URL,
-        input_mint,
-        output_mint,
-        amount,
+        "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}",
         quote_config.only_direct_routes,
         quote_config
             .as_legacy_transaction
             .map(|as_legacy_transaction| format!("&asLegacyTransaction={as_legacy_transaction}"))
             .unwrap_or_default(),
         quote_config
+            .swap_mode
+            .map(|swap_mode| format!("&swapMode={swap_mode}"))
+            .unwrap_or_default(),
+        quote_config
             .slippage_bps
             .map(|slippage_bps| format!("&slippageBps={slippage_bps}"))
             .unwrap_or_default(),
         quote_config
-            .fees_bps
-            .map(|fees_bps| format!("&feesBps={fees_bps}"))
+            .fee_bps
+            .map(|fee_bps| format!("&feeBps={fee_bps}"))
             .unwrap_or_default(),
     );
 
@@ -216,10 +250,10 @@ pub async fn swap_with_config(
     let request = SwapRequest {
         route,
         wrap_unwrap_SOL: swap_config.wrap_unwrap_sol,
-        fee_account: swap_config.fee_account.map(|x| x.to_string()),
         user_public_key,
         as_legacy_transaction: swap_config.as_legacy_transaction,
         compute_unit_price_micro_lamports: swap_config.compute_unit_price_micro_lamports,
+        fee_account: None,
     };
 
     let response = maybe_jupiter_api_error::<SwapResponse>(
