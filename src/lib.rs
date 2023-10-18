@@ -13,7 +13,7 @@ mod field_as_string;
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v4"; // Reference: https://quote-api.jup.ag/v4/docs/static/index.html
+const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v6"; // Reference: https://quote-api.jup.ag/v4/docs/static/index.html
 const PRICE_API_URL: &str = "https://price.jup.ag/v1"; // Reference: https://quote-api.jup.ag/docs/static/index.html
 
 /// The Errors that may occur while using this crate
@@ -41,14 +41,6 @@ pub enum Error {
     ParseSwapMode { value: String },
 }
 
-/// Generic response with timing information
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Response<T> {
-    pub data: T,
-    pub time_taken: f64,
-}
-
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
@@ -67,36 +59,58 @@ pub struct Price {
 #[serde(rename_all = "camelCase")]
 pub struct Quote {
     #[serde(with = "field_as_string")]
+    pub input_mint: Pubkey,
+    #[serde(with = "field_as_string")]
     pub in_amount: u64,
     #[serde(with = "field_as_string")]
-    pub out_amount: u64,
-    pub price_impact_pct: f64,
-    pub market_infos: Vec<MarketInfo>,
+    pub output_mint: Pubkey,
     #[serde(with = "field_as_string")]
-    pub amount: u64,
-    pub slippage_bps: u64,
+    pub out_amount: u64,
     #[serde(with = "field_as_string")]
     pub other_amount_threshold: u64,
     pub swap_mode: String,
+    pub slippage_bps: u64,
+    pub platform_fee: Option<PlatformFee>,
+    #[serde(with = "field_as_string")]
+    pub price_impact_pct: f64,
+    pub route_plan: Vec<RoutePlan>,
+    pub context_slot: Option<u64>,
+    pub time_taken: Option<f64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MarketInfo {
-    pub id: String,
-    pub label: String,
+pub struct PlatformFee {
+    #[serde(with = "field_as_string")]
+    pub amount: u64,
+    pub fee_bps: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoutePlan {
+    pub swap_info: SwapInfo,
+    pub percent: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwapInfo {
+    #[serde(with = "field_as_string")]
+    pub amm_key: Pubkey,
+    pub label: Option<String>,
     #[serde(with = "field_as_string")]
     pub input_mint: Pubkey,
     #[serde(with = "field_as_string")]
     pub output_mint: Pubkey,
-    pub not_enough_liquidity: bool,
     #[serde(with = "field_as_string")]
     pub in_amount: u64,
     #[serde(with = "field_as_string")]
     pub out_amount: u64,
-    pub price_impact_pct: f64,
-    pub lp_fee: FeeInfo,
-    pub platform_fee: FeeInfo,
+    #[serde(with = "field_as_string")]
+    pub fee_amount: u64,
+    #[serde(with = "field_as_string")]
+    pub fee_mint: Pubkey,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -138,7 +152,7 @@ pub async fn price(
     input_mint: Pubkey,
     output_mint: Pubkey,
     ui_amount: f64,
-) -> Result<Response<Price>> {
+) -> Result<Price> {
     let url =
         format!("{PRICE_API_URL}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}");
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
@@ -174,11 +188,14 @@ impl fmt::Display for SwapMode {
 
 #[derive(Default)]
 pub struct QuoteConfig {
-    pub only_direct_routes: bool,
     pub slippage_bps: Option<u64>,
     pub swap_mode: Option<SwapMode>,
-    pub fee_bps: Option<u64>,
+    pub dexes: Option<Vec<Pubkey>>,
+    pub exclude_dexes: Option<Vec<Pubkey>>,
+    pub only_direct_routes: bool,
     pub as_legacy_transaction: Option<bool>,
+    pub platform_fee_bps: Option<u64>,
+    pub max_accounts: Option<u64>,
 }
 
 /// Get quote for a given input mint, output mint and amount
@@ -187,7 +204,7 @@ pub async fn quote(
     output_mint: Pubkey,
     amount: u64,
     quote_config: QuoteConfig,
-) -> Result<Response<Vec<Quote>>> {
+) -> Result<Quote> {
     let url = format!(
         "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}",
         quote_config.only_direct_routes,
@@ -205,7 +222,19 @@ pub async fn quote(
             .unwrap_or_default(),
         quote_config
             .fee_bps
-            .map(|fee_bps| format!("&feeBps={fee_bps}"))
+            .map(|fee_bps| format!("&feeBps={platform_fee_bps}"))
+            .unwrap_or_default(),
+        quote_config
+            .dexes
+            .map(|dexes| format!("&dexes={dexes}"))
+            .unwrap_or_default(),
+        quote_config
+            .exclude_dexes
+            .map(|exclude_dexes| format!("&excludeDexes={exclude_dexes}"))
+            .unwrap_or_default(),
+        quote_config
+            .max_accounts
+            .map(|max_accounts| format!("&maxAccounts={max_accounts}"))
             .unwrap_or_default(),
     );
 

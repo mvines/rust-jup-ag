@@ -69,10 +69,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let quote = quotes.get(0).ok_or("No quotes found for SOL to mSOL")?;
 
     let route = quote
-        .market_infos
-        .iter()
-        .map(|market_info| market_info.label.clone())
-        .join(", ");
+        .route_plan[0]
+        .swap_info
+        .label
+        .unwrap_or_else(||"Unknown DEX".to_string());
     println!(
         "Quote: {} SOL for {} mSOL via {} (worst case with slippage: {}). Impact: {:.2}%",
         amount_to_ui_amount(quote.in_amount, 9),
