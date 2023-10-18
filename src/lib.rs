@@ -206,7 +206,7 @@ pub async fn quote(
     quote_config: QuoteConfig,
 ) -> Result<Quote> {
     let url = format!(
-        "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}",
+        "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}",
         quote_config.only_direct_routes,
         quote_config
             .as_legacy_transaction
@@ -221,16 +221,16 @@ pub async fn quote(
             .map(|slippage_bps| format!("&slippageBps={slippage_bps}"))
             .unwrap_or_default(),
         quote_config
-            .fee_bps
-            .map(|fee_bps| format!("&feeBps={platform_fee_bps}"))
+            .platform_fee_bps
+            .map(|platform_fee_bps| format!("&feeBps={platform_fee_bps}"))
             .unwrap_or_default(),
         quote_config
             .dexes
-            .map(|dexes| format!("&dexes={dexes}"))
+            .map(|dexes| format!("&dexes={:?}", dexes))
             .unwrap_or_default(),
         quote_config
             .exclude_dexes
-            .map(|exclude_dexes| format!("&excludeDexes={exclude_dexes}"))
+            .map(|exclude_dexes| format!("&excludeDexes={:?}", exclude_dexes))
             .unwrap_or_default(),
         quote_config
             .max_accounts
