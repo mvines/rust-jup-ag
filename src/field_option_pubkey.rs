@@ -1,6 +1,5 @@
 use {
     serde::{Serialize, Serializer},
-    std::str::FromStr,
     solana_sdk::pubkey::Pubkey,
 };
 

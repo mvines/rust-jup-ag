@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request: SwapRequest = SwapRequest::new(keypair.pubkey(), quotes.clone());
 
-    let jup_ag::Swap { mut swap_transaction, _last_valid_block_height } = jup_ag::swap(request).await?;
+    let jup_ag::Swap { mut swap_transaction, last_valid_block_height: _ } = jup_ag::swap(request).await?;
 
     let recent_blockhash_for_swap: Hash = rpc_client.get_latest_blockhash().await?;
     swap_transaction.message.set_recent_blockhash(recent_blockhash_for_swap); // Updating to latest blockhash to not error out
