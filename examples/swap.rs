@@ -2,7 +2,6 @@ use jup_ag::{QuoteConfig, SwapRequest};
 use solana_sdk::transaction::VersionedTransaction;
 
 use {
-    itertools::Itertools,
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{
         commitment_config::CommitmentConfig,

@@ -1,7 +1,6 @@
 use jup_ag::QuoteConfig;
 
 use {
-    itertools::Itertools,
     solana_sdk::pubkey,
     spl_token::{amount_to_ui_amount, ui_amount_to_amount},
 };
