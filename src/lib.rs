@@ -150,11 +150,7 @@ where
 }
 
 /// Get simple price for a given input mint, output mint and amount
-pub async fn price(
-    input_mint: Pubkey,
-    output_mint: Pubkey,
-    ui_amount: f64,
-) -> Result<Price> {
+pub async fn price(input_mint: Pubkey, output_mint: Pubkey, ui_amount: f64) -> Result<Price> {
     let url =
         format!("{PRICE_API_URL}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}");
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
@@ -257,7 +253,7 @@ pub struct SwapRequest {
     pub as_legacy_transaction: Option<bool>,
     pub use_token_ledger: Option<bool>,
     #[serde(with = "field_option_pubkey")]
-    pub destination_token_account: Option<Pubkey>, 
+    pub destination_token_account: Option<Pubkey>,
     pub quote_response: Quote,
 }
 
@@ -272,7 +268,7 @@ impl SwapRequest {
             compute_unit_price_micro_lamports: None, // Tested with reqbin if null the value will work, most likely then using "auto"
             as_legacy_transaction: Some(false),
             use_token_ledger: Some(false),
-            destination_token_account: None, 
+            destination_token_account: None,
             quote_response,
         }
     }
@@ -286,9 +282,7 @@ struct SwapResponse {
 }
 
 /// Get swap serialized transactions for a quote
-pub async fn swap(
-    swap_request: SwapRequest,
-) -> Result<Swap> {
+pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
     let url = format!("{QUOTE_API_URL}/swap");
 
     let response = maybe_jupiter_api_error::<SwapResponse>(

@@ -1,4 +1,4 @@
-use jup_ag::{SwapRequest, QuoteConfig};
+use jup_ag::{QuoteConfig, SwapRequest};
 use solana_sdk::transaction::VersionedTransaction;
 
 use {
@@ -6,9 +6,9 @@ use {
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{
         commitment_config::CommitmentConfig,
+        hash::Hash,
         pubkey,
         signature::{read_keypair_file, Keypair, Signer},
-        hash::Hash,
     },
     spl_token::{amount_to_ui_amount, ui_amount_to_amount},
 };
@@ -66,11 +66,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    let route = quotes
-        .route_plan[0]
+    let route = quotes.route_plan[0]
         .swap_info
-        .label.clone()
-        .unwrap_or_else(||"Unknown DEX".to_string());
+        .label
+        .clone()
+        .unwrap_or_else(|| "Unknown DEX".to_string());
     println!(
         "Quote: {} SOL for {} mSOL via {} (worst case with slippage: {}). Impact: {:.2}%",
         amount_to_ui_amount(quotes.in_amount, 9),
@@ -82,11 +82,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request: SwapRequest = SwapRequest::new(keypair.pubkey(), quotes.clone());
 
-    let jup_ag::Swap { mut swap_transaction, last_valid_block_height: _ } = jup_ag::swap(request).await?;
+    let jup_ag::Swap {
+        mut swap_transaction,
+        last_valid_block_height: _,
+    } = jup_ag::swap(request).await?;
 
     let recent_blockhash_for_swap: Hash = rpc_client.get_latest_blockhash().await?;
-    swap_transaction.message.set_recent_blockhash(recent_blockhash_for_swap); // Updating to latest blockhash to not error out
-     
+    swap_transaction
+        .message
+        .set_recent_blockhash(recent_blockhash_for_swap); // Updating to latest blockhash to not error out
+
     let swap_transaction = VersionedTransaction::try_new(swap_transaction.message, &[&keypair])?;
     println!(
         "Simulating swap transaction: {}",

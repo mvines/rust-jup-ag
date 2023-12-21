@@ -40,7 +40,7 @@ async fn main() -> jup_ag::Result<()> {
             let route = quote
                 .swap_info
                 .label
-                .unwrap_or_else(||"Unknown DEX".to_string());
+                .unwrap_or_else(|| "Unknown DEX".to_string());
             println!(
                 "{}. {} {} for {} {} via {} (worst case with slippage: {}). Impact: {:.2}%",
                 i,
