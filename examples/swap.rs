@@ -1,4 +1,4 @@
-use jup_ag::QuoteConfig;
+use jup_ag::{SwapRequest, QuoteConfig};
 use solana_sdk::transaction::VersionedTransaction;
 
 use {
@@ -8,6 +8,7 @@ use {
         commitment_config::CommitmentConfig,
         pubkey,
         signature::{read_keypair_file, Keypair, Signer},
+        hash::Hash,
     },
     spl_token::{amount_to_ui_amount, ui_amount_to_amount},
 };
@@ -63,27 +64,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..QuoteConfig::default()
         },
     )
-    .await?
-    .data;
+    .await?;
 
-    let quote = quotes.get(0).ok_or("No quotes found for SOL to mSOL")?;
-
-    let route = quote
-        .market_infos
-        .iter()
-        .map(|market_info| market_info.label.clone())
-        .join(", ");
+    let route = quotes
+        .route_plan[0]
+        .swap_info
+        .label.clone()
+        .unwrap_or_else(||"Unknown DEX".to_string());
     println!(
         "Quote: {} SOL for {} mSOL via {} (worst case with slippage: {}). Impact: {:.2}%",
-        amount_to_ui_amount(quote.in_amount, 9),
-        amount_to_ui_amount(quote.out_amount, 9),
+        amount_to_ui_amount(quotes.in_amount, 9),
+        amount_to_ui_amount(quotes.out_amount, 9),
         route,
-        amount_to_ui_amount(quote.other_amount_threshold, 9),
-        quote.price_impact_pct * 100.
+        amount_to_ui_amount(quotes.other_amount_threshold, 9),
+        quotes.price_impact_pct * 100.
     );
 
-    let jup_ag::Swap { swap_transaction } = jup_ag::swap(quote.clone(), keypair.pubkey()).await?;
+    let request: SwapRequest = SwapRequest::new(keypair.pubkey(), quotes.clone());
 
+    let jup_ag::Swap { mut swap_transaction, last_valid_block_height: _ } = jup_ag::swap(request).await?;
+
+    let recent_blockhash_for_swap: Hash = rpc_client.get_latest_blockhash().await?;
+    swap_transaction.message.set_recent_blockhash(recent_blockhash_for_swap); // Updating to latest blockhash to not error out
+     
     let swap_transaction = VersionedTransaction::try_new(swap_transaction.message, &[&keypair])?;
     println!(
         "Simulating swap transaction: {}",

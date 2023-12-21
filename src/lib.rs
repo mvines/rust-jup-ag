@@ -9,11 +9,12 @@ use {
 };
 
 mod field_as_string;
+mod field_option_pubkey;
 
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v4"; // Reference: https://quote-api.jup.ag/v4/docs/static/index.html
+const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v6"; // Reference: https://quote-api.jup.ag/v4/docs/static/index.html
 const PRICE_API_URL: &str = "https://price.jup.ag/v1"; // Reference: https://quote-api.jup.ag/docs/static/index.html
 
 /// The Errors that may occur while using this crate
@@ -41,14 +42,6 @@ pub enum Error {
     ParseSwapMode { value: String },
 }
 
-/// Generic response with timing information
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Response<T> {
-    pub data: T,
-    pub time_taken: f64,
-}
-
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
@@ -67,36 +60,58 @@ pub struct Price {
 #[serde(rename_all = "camelCase")]
 pub struct Quote {
     #[serde(with = "field_as_string")]
+    pub input_mint: Pubkey,
+    #[serde(with = "field_as_string")]
     pub in_amount: u64,
     #[serde(with = "field_as_string")]
-    pub out_amount: u64,
-    pub price_impact_pct: f64,
-    pub market_infos: Vec<MarketInfo>,
+    pub output_mint: Pubkey,
     #[serde(with = "field_as_string")]
-    pub amount: u64,
-    pub slippage_bps: u64,
+    pub out_amount: u64,
     #[serde(with = "field_as_string")]
     pub other_amount_threshold: u64,
     pub swap_mode: String,
+    pub slippage_bps: u64,
+    pub platform_fee: Option<PlatformFee>,
+    #[serde(with = "field_as_string")]
+    pub price_impact_pct: f64,
+    pub route_plan: Vec<RoutePlan>,
+    pub context_slot: Option<u64>,
+    pub time_taken: Option<f64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MarketInfo {
-    pub id: String,
-    pub label: String,
+pub struct PlatformFee {
+    #[serde(with = "field_as_string")]
+    pub amount: u64,
+    pub fee_bps: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoutePlan {
+    pub swap_info: SwapInfo,
+    pub percent: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwapInfo {
+    #[serde(with = "field_as_string")]
+    pub amm_key: Pubkey,
+    pub label: Option<String>,
     #[serde(with = "field_as_string")]
     pub input_mint: Pubkey,
     #[serde(with = "field_as_string")]
     pub output_mint: Pubkey,
-    pub not_enough_liquidity: bool,
     #[serde(with = "field_as_string")]
     pub in_amount: u64,
     #[serde(with = "field_as_string")]
     pub out_amount: u64,
-    pub price_impact_pct: f64,
-    pub lp_fee: FeeInfo,
-    pub platform_fee: FeeInfo,
+    #[serde(with = "field_as_string")]
+    pub fee_amount: u64,
+    #[serde(with = "field_as_string")]
+    pub fee_mint: Pubkey,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -113,6 +128,7 @@ pub struct FeeInfo {
 #[derive(Clone, Debug)]
 pub struct Swap {
     pub swap_transaction: VersionedTransaction,
+    pub last_valid_block_height: u64,
 }
 
 /// Hashmap of possible swap routes from input mint to an array of output mints
@@ -138,7 +154,7 @@ pub async fn price(
     input_mint: Pubkey,
     output_mint: Pubkey,
     ui_amount: f64,
-) -> Result<Response<Price>> {
+) -> Result<Price> {
     let url =
         format!("{PRICE_API_URL}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}");
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
@@ -174,11 +190,14 @@ impl fmt::Display for SwapMode {
 
 #[derive(Default)]
 pub struct QuoteConfig {
-    pub only_direct_routes: bool,
     pub slippage_bps: Option<u64>,
     pub swap_mode: Option<SwapMode>,
-    pub fee_bps: Option<u64>,
+    pub dexes: Option<Vec<Pubkey>>,
+    pub exclude_dexes: Option<Vec<Pubkey>>,
+    pub only_direct_routes: bool,
     pub as_legacy_transaction: Option<bool>,
+    pub platform_fee_bps: Option<u64>,
+    pub max_accounts: Option<u64>,
 }
 
 /// Get quote for a given input mint, output mint and amount
@@ -187,9 +206,9 @@ pub async fn quote(
     output_mint: Pubkey,
     amount: u64,
     quote_config: QuoteConfig,
-) -> Result<Response<Vec<Quote>>> {
+) -> Result<Quote> {
     let url = format!(
-        "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}",
+        "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}",
         quote_config.only_direct_routes,
         quote_config
             .as_legacy_transaction
@@ -204,63 +223,80 @@ pub async fn quote(
             .map(|slippage_bps| format!("&slippageBps={slippage_bps}"))
             .unwrap_or_default(),
         quote_config
-            .fee_bps
-            .map(|fee_bps| format!("&feeBps={fee_bps}"))
+            .platform_fee_bps
+            .map(|platform_fee_bps| format!("&feeBps={platform_fee_bps}"))
+            .unwrap_or_default(),
+        quote_config
+            .dexes
+            .map(|dexes| format!("&dexes={:?}", dexes))
+            .unwrap_or_default(),
+        quote_config
+            .exclude_dexes
+            .map(|exclude_dexes| format!("&excludeDexes={:?}", exclude_dexes))
+            .unwrap_or_default(),
+        quote_config
+            .max_accounts
+            .map(|max_accounts| format!("&maxAccounts={max_accounts}"))
             .unwrap_or_default(),
     );
 
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
-#[derive(Default)]
-pub struct SwapConfig {
-    pub wrap_unwrap_sol: Option<bool>,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(non_snake_case)]
+pub struct SwapRequest {
+    #[serde(with = "field_as_string")]
+    pub user_public_key: Pubkey,
+    pub wrap_and_unwrap_sol: Option<bool>,
+    pub use_shared_accounts: Option<bool>,
+    #[serde(with = "field_option_pubkey")]
     pub fee_account: Option<Pubkey>,
-    pub compute_unit_price_micro_lamports: Option<usize>,
+    pub compute_unit_price_micro_lamports: Option<u64>,
     pub as_legacy_transaction: Option<bool>,
+    pub use_token_ledger: Option<bool>,
+    #[serde(with = "field_option_pubkey")]
+    pub destination_token_account: Option<Pubkey>, 
+    pub quote_response: Quote,
+}
+
+impl SwapRequest {
+    /// Creates new SwapRequest with the given and default values
+    pub fn new(user_public_key: Pubkey, quote_response: Quote) -> Self {
+        SwapRequest {
+            user_public_key,
+            wrap_and_unwrap_sol: Some(true),
+            use_shared_accounts: Some(true),
+            fee_account: None,
+            compute_unit_price_micro_lamports: None, // Tested with reqbin if null the value will work, most likely then using "auto"
+            as_legacy_transaction: Some(false),
+            use_token_ledger: Some(false),
+            destination_token_account: None, 
+            quote_response,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SwapResponse {
+    pub swap_transaction: String,
+    pub last_valid_block_height: u64,
 }
 
 /// Get swap serialized transactions for a quote
-pub async fn swap_with_config(
-    route: Quote,
-    user_public_key: Pubkey,
-    swap_config: SwapConfig,
+pub async fn swap(
+    swap_request: SwapRequest,
 ) -> Result<Swap> {
     let url = format!("{QUOTE_API_URL}/swap");
-
-    #[derive(Debug, Serialize)]
-    #[serde(rename_all = "camelCase")]
-    #[allow(non_snake_case)]
-    struct SwapRequest {
-        route: Quote,
-        wrap_unwrap_SOL: Option<bool>,
-        fee_account: Option<String>,
-        #[serde(with = "field_as_string")]
-        user_public_key: Pubkey,
-        as_legacy_transaction: Option<bool>,
-        compute_unit_price_micro_lamports: Option<usize>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct SwapResponse {
-        swap_transaction: String,
-    }
-
-    let request = SwapRequest {
-        route,
-        wrap_unwrap_SOL: swap_config.wrap_unwrap_sol,
-        user_public_key,
-        as_legacy_transaction: swap_config.as_legacy_transaction,
-        compute_unit_price_micro_lamports: swap_config.compute_unit_price_micro_lamports,
-        fee_account: None,
-    };
 
     let response = maybe_jupiter_api_error::<SwapResponse>(
         reqwest::Client::builder()
             .build()?
             .post(url)
-            .json(&request)
+            .header("Accept", "application/json")
+            .json(&swap_request)
             .send()
             .await?
             .error_for_status()?
@@ -274,12 +310,8 @@ pub async fn swap_with_config(
 
     Ok(Swap {
         swap_transaction: decode(response.swap_transaction)?,
+        last_valid_block_height: response.last_valid_block_height,
     })
-}
-
-/// Get swap serialized transactions for a quote using `SwapConfig` defaults
-pub async fn swap(route: Quote, user_public_key: Pubkey) -> Result<Swap> {
-    swap_with_config(route, user_public_key, SwapConfig::default()).await
 }
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values

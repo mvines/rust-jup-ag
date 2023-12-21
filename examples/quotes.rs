@@ -15,7 +15,7 @@ async fn main() -> jup_ag::Result<()> {
     let ui_amount = 1.;
 
     for (output_token, output_decimals) in [(usdc, 6), (msol, 9), (sol, 9)] {
-        let data = jup_ag::price(sol, output_token, ui_amount).await?.data;
+        let data = jup_ag::price(sol, output_token, ui_amount).await?;
         println!(
             "Price for {} {} is {} {}",
             ui_amount, data.input_symbol, data.price, data.output_symbol
@@ -33,26 +33,24 @@ async fn main() -> jup_ag::Result<()> {
                 ..QuoteConfig::default()
             },
         )
-        .await?
-        .data;
+        .await?;
 
-        println!("Received {} quotes:", quotes.len());
-        for (i, quote) in quotes.into_iter().enumerate() {
+        println!("Received {} quotes:", quotes.route_plan.len());
+        for (i, quote) in quotes.route_plan.into_iter().enumerate() {
             let route = quote
-                .market_infos
-                .iter()
-                .map(|market_info| market_info.label.clone())
-                .join(", ");
+                .swap_info
+                .label
+                .unwrap_or_else(||"Unknown DEX".to_string());
             println!(
                 "{}. {} {} for {} {} via {} (worst case with slippage: {}). Impact: {:.2}%",
                 i,
-                amount_to_ui_amount(quote.in_amount, 9),
+                amount_to_ui_amount(quote.swap_info.in_amount, 9),
                 data.input_symbol,
-                amount_to_ui_amount(quote.out_amount, output_decimals),
+                amount_to_ui_amount(quote.swap_info.out_amount, output_decimals),
                 data.output_symbol,
                 route,
-                amount_to_ui_amount(quote.other_amount_threshold, output_decimals),
-                quote.price_impact_pct * 100.
+                amount_to_ui_amount(quotes.other_amount_threshold, output_decimals),
+                quotes.price_impact_pct * 100.
             );
         }
         println!();
