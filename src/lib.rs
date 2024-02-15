@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{env, fmt, str::FromStr};
 
 use solana_sdk::transaction::VersionedTransaction;
 
@@ -14,8 +14,15 @@ mod field_option_pubkey;
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-const QUOTE_API_URL: &str = "https://quote-api.jup.ag/v6"; // Reference: https://quote-api.jup.ag/v4/docs/static/index.html
-const PRICE_API_URL: &str = "https://price.jup.ag/v1"; // Reference: https://quote-api.jup.ag/docs/static/index.html
+// Reference: https://quote-api.jup.ag/v4/docs/static/index.html
+fn quote_api_url() -> String {
+    env::var("QUOTE_API_URL").unwrap_or_else(|_| "https://quote-api.jup.ag/v6".to_string())
+}
+
+// Reference: https://quote-api.jup.ag/docs/static/index.html
+fn price_api_url() -> String {
+    env::var("PRICE_API_URL").unwrap_or_else(|_| "https://price.jup.ag/v1".to_string())
+}
 
 /// The Errors that may occur while using this crate
 #[derive(thiserror::Error, Debug)]
@@ -149,10 +156,12 @@ where
     }
 }
 
-/// Get simple price for a given input mint, output mint and amount
+/// Get simple price for a given input mint, output mint, and amount
 pub async fn price(input_mint: Pubkey, output_mint: Pubkey, ui_amount: f64) -> Result<Price> {
-    let url =
-        format!("{PRICE_API_URL}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}");
+    let url = format!(
+        "{base_url}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}",
+        base_url = price_api_url(),
+    );
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
@@ -196,7 +205,7 @@ pub struct QuoteConfig {
     pub max_accounts: Option<u64>,
 }
 
-/// Get quote for a given input mint, output mint and amount
+/// Get quote for a given input mint, output mint, and amount
 pub async fn quote(
     input_mint: Pubkey,
     output_mint: Pubkey,
@@ -204,7 +213,7 @@ pub async fn quote(
     quote_config: QuoteConfig,
 ) -> Result<Quote> {
     let url = format!(
-        "{QUOTE_API_URL}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}",
+        "{base_url}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}",
         quote_config.only_direct_routes,
         quote_config
             .as_legacy_transaction
@@ -234,6 +243,7 @@ pub async fn quote(
             .max_accounts
             .map(|max_accounts| format!("&maxAccounts={max_accounts}"))
             .unwrap_or_default(),
+        base_url=quote_api_url(),
     );
 
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
@@ -283,7 +293,7 @@ struct SwapResponse {
 
 /// Get swap serialized transactions for a quote
 pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
-    let url = format!("{QUOTE_API_URL}/swap");
+    let url = format!("{}/swap", quote_api_url());
 
     let response = maybe_jupiter_api_error::<SwapResponse>(
         reqwest::Client::builder()
@@ -310,7 +320,10 @@ pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values
 pub async fn route_map() -> Result<RouteMap> {
-    let url = format!("{QUOTE_API_URL}/indexed-route-map?onlyDirectRoutes=false");
+    let url = format!(
+        "{}/indexed-route-map?onlyDirectRoutes=false",
+        quote_api_url()
+    );
 
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
