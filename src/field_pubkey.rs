@@ -20,7 +20,7 @@ pub mod vec {
     }
 
     #[allow(dead_code)]
-    pub fn serialize<S>(vec_pubkey: &Vec<Pubkey>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(vec_pubkey: &[Pubkey], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
