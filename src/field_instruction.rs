@@ -1,7 +1,7 @@
 // Deserialize Instruction with a custom function
 pub mod instruction {
     use serde::{Deserialize, Deserializer};
-    use solana_sdk::{pubkey::Pubkey, instruction::Instruction, instruction::AccountMeta};
+    use solana_sdk::{instruction::AccountMeta, instruction::Instruction, pubkey::Pubkey};
     use std::str::FromStr;
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Instruction, D::Error>
@@ -28,15 +28,20 @@ pub mod instruction {
         let program_id = Pubkey::from_str(&fields.program_id)
             .map_err(|e| serde::de::Error::custom(format!("Error parsing programId: {}", e)))?;
 
-        let accounts = fields.accounts.into_iter().map(|acc| {
-            let pubkey = Pubkey::from_str(&acc.pubkey)
-                .map_err(|e| serde::de::Error::custom(format!("Error parsing pubkey: {}", e)))?;
-            Ok(AccountMeta {
-                pubkey,
-                is_signer: acc.is_signer,
-                is_writable: acc.is_writable,
+        let accounts = fields
+            .accounts
+            .into_iter()
+            .map(|acc| {
+                let pubkey = Pubkey::from_str(&acc.pubkey).map_err(|e| {
+                    serde::de::Error::custom(format!("Error parsing pubkey: {}", e))
+                })?;
+                Ok(AccountMeta {
+                    pubkey,
+                    is_signer: acc.is_signer,
+                    is_writable: acc.is_writable,
+                })
             })
-        }).collect::<Result<Vec<AccountMeta>, _>>()?;
+            .collect::<Result<Vec<AccountMeta>, _>>()?;
 
         let instruction = Instruction {
             program_id,
@@ -62,11 +67,14 @@ pub mod option_instruction {
 
         match value {
             serde_json::Value::Null => Ok(None),
-            _ => {
-                crate::field_instruction::instruction::deserialize(value)
-                    .map_err(|e| serde::de::Error::custom(format!("Error deserialize optional instruction: {}", e)))
-                    .map(Some)
-            }
+            _ => crate::field_instruction::instruction::deserialize(value)
+                .map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error deserialize optional instruction: {}",
+                        e
+                    ))
+                })
+                .map(Some),
         }
     }
 }
@@ -84,8 +92,10 @@ pub mod vec_instruction {
         let mut instructions = Vec::new();
 
         for value in values {
-            let instruction: Instruction = crate::field_instruction::instruction::deserialize(value)
-                .map_err(|e| serde::de::Error::custom(format!("Error deserialize vec instruction: {}", e)))?;
+            let instruction: Instruction =
+                crate::field_instruction::instruction::deserialize(value).map_err(|e| {
+                    serde::de::Error::custom(format!("Error deserialize vec instruction: {}", e))
+                })?;
             instructions.push(instruction);
         }
 

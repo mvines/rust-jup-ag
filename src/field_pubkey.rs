@@ -2,8 +2,8 @@ pub mod vec {
     use {
         serde::{de, Deserializer, Serializer},
         serde::{Deserialize, Serialize},
-        std::str::FromStr,
         solana_sdk::pubkey::Pubkey,
+        std::str::FromStr,
     };
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Pubkey>, D::Error>

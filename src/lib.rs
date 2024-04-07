@@ -12,8 +12,8 @@ use {
 };
 
 mod field_as_string;
-mod field_pubkey;
 mod field_instruction;
+mod field_pubkey;
 
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
