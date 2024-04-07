@@ -4,12 +4,16 @@ use solana_sdk::transaction::VersionedTransaction;
 
 use {
     serde::{Deserialize, Serialize},
-    solana_sdk::pubkey::{ParsePubkeyError, Pubkey},
+    solana_sdk::{
+        instruction::Instruction,
+        pubkey::{ParsePubkeyError, Pubkey},
+    },
     std::collections::HashMap,
 };
 
 mod field_as_string;
-mod field_option_pubkey;
+mod field_pubkey;
+mod field_instruction;
 
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -138,6 +142,25 @@ pub struct Swap {
     pub last_valid_block_height: u64,
 }
 
+/// Swap instructions
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwapInstructions {
+    #[serde(with = "field_instruction::option_instruction")]
+    pub token_ledger_instruction: Option<Instruction>,
+    #[serde(with = "field_instruction::vec_instruction")]
+    pub compute_budget_instructions: Vec<Instruction>,
+    #[serde(with = "field_instruction::vec_instruction")]
+    pub setup_instructions: Vec<Instruction>,
+    #[serde(with = "field_instruction::instruction")]
+    pub swap_instruction: Instruction,
+    #[serde(with = "field_instruction::option_instruction")]
+    pub cleanup_instruction: Option<Instruction>,
+    #[serde(with = "field_pubkey::vec")]
+    pub address_lookup_table_addresses: Vec<Pubkey>,
+    pub prioritization_fee_lamports: u64,
+}
+
 /// Hashmap of possible swap routes from input mint to an array of output mints
 pub type RouteMap = HashMap<Pubkey, Vec<Pubkey>>;
 
@@ -257,12 +280,12 @@ pub struct SwapRequest {
     pub user_public_key: Pubkey,
     pub wrap_and_unwrap_sol: Option<bool>,
     pub use_shared_accounts: Option<bool>,
-    #[serde(with = "field_option_pubkey")]
+    #[serde(with = "field_pubkey::option")]
     pub fee_account: Option<Pubkey>,
     pub compute_unit_price_micro_lamports: Option<u64>,
     pub as_legacy_transaction: Option<bool>,
     pub use_token_ledger: Option<bool>,
-    #[serde(with = "field_option_pubkey")]
+    #[serde(with = "field_pubkey::option")]
     pub destination_token_account: Option<Pubkey>,
     pub quote_response: Quote,
 }
@@ -316,6 +339,24 @@ pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
         swap_transaction: decode(response.swap_transaction)?,
         last_valid_block_height: response.last_valid_block_height,
     })
+}
+
+/// Get swap serialized transaction instructions for a quote
+pub async fn swap_instructions(swap_request: SwapRequest) -> Result<SwapInstructions> {
+    let url = format!("{}/swap-instructions", quote_api_url());
+
+    Ok(maybe_jupiter_api_error::<SwapInstructions>(
+        reqwest::Client::builder()
+            .build()?
+            .post(url)
+            .header("Accept", "application/json")
+            .json(&swap_request)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?,
+    )?)
 }
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values
