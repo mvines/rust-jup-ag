@@ -347,7 +347,7 @@ pub async fn swap_instructions(swap_request: SwapRequest) -> Result<SwapInstruct
 
     let response = reqwest::Client::builder()
         .build()?
-        .post(url.clone())
+        .post(url)
         .header("Accept", "application/json")
         .json(&swap_request)
         .send()
