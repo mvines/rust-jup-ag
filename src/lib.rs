@@ -345,18 +345,19 @@ pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
 pub async fn swap_instructions(swap_request: SwapRequest) -> Result<SwapInstructions> {
     let url = format!("{}/swap-instructions", quote_api_url());
 
-    maybe_jupiter_api_error::<SwapInstructions>(
-        reqwest::Client::builder()
-            .build()?
-            .post(url)
-            .header("Accept", "application/json")
-            .json(&swap_request)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?,
-    )
+    let response = reqwest::Client::builder()
+        .build()?
+        .post(url.clone())
+        .header("Accept", "application/json")
+        .json(&swap_request)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(Error::JupiterApi(response.text().await?));
+    }
+
+    Ok(response.json::<SwapInstructions>().await?)
 }
 
 /// Returns a hash map, input mint as key and an array of valid output mint as values
