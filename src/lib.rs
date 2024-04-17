@@ -13,6 +13,7 @@ use {
 
 mod field_as_string;
 mod field_instruction;
+mod field_prioritization_fee;
 mod field_pubkey;
 
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
@@ -272,6 +273,12 @@ pub async fn quote(
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
+#[derive(Debug)]
+pub enum PrioritizationFeeLamports {
+    Auto,
+    Exact { lamports: u64 },
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(non_snake_case)]
@@ -282,7 +289,10 @@ pub struct SwapRequest {
     pub use_shared_accounts: Option<bool>,
     #[serde(with = "field_pubkey::option")]
     pub fee_account: Option<Pubkey>,
+    #[deprecated = "please use SwapRequest::prioritization_fee_lamports instead"]
     pub compute_unit_price_micro_lamports: Option<u64>,
+    #[serde(with = "field_prioritization_fee")]
+    pub prioritization_fee_lamports: PrioritizationFeeLamports,
     pub as_legacy_transaction: Option<bool>,
     pub use_token_ledger: Option<bool>,
     #[serde(with = "field_pubkey::option")]
@@ -293,12 +303,14 @@ pub struct SwapRequest {
 impl SwapRequest {
     /// Creates new SwapRequest with the given and default values
     pub fn new(user_public_key: Pubkey, quote_response: Quote) -> Self {
+        #[allow(deprecated)]
         SwapRequest {
             user_public_key,
             wrap_and_unwrap_sol: Some(true),
             use_shared_accounts: Some(true),
             fee_account: None,
-            compute_unit_price_micro_lamports: None, // Tested with reqbin if null the value will work, most likely then using "auto"
+            compute_unit_price_micro_lamports: None,
+            prioritization_fee_lamports: PrioritizationFeeLamports::Auto,
             as_legacy_transaction: Some(false),
             use_token_ledger: Some(false),
             destination_token_account: None,
