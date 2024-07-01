@@ -1,14 +1,12 @@
-use std::{env, fmt, str::FromStr};
-
-use solana_sdk::transaction::VersionedTransaction;
-
 use {
+    itertools::Itertools,
     serde::{Deserialize, Serialize},
+    solana_sdk::transaction::VersionedTransaction,
     solana_sdk::{
         instruction::Instruction,
         pubkey::{ParsePubkeyError, Pubkey},
     },
-    std::collections::HashMap,
+    std::{collections::HashMap, env, fmt, str::FromStr},
 };
 
 mod field_as_string;
@@ -257,11 +255,11 @@ pub async fn quote(
             .unwrap_or_default(),
         quote_config
             .dexes
-            .map(|dexes| format!("&dexes={:?}", dexes))
+            .map(|dexes| format!("&dexes={}", dexes.into_iter().join(",")))
             .unwrap_or_default(),
         quote_config
             .exclude_dexes
-            .map(|exclude_dexes| format!("&excludeDexes={:?}", exclude_dexes))
+            .map(|exclude_dexes| format!("&excludeDexes={}", exclude_dexes.into_iter().join(",")))
             .unwrap_or_default(),
         quote_config
             .max_accounts
