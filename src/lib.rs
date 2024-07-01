@@ -221,8 +221,8 @@ impl fmt::Display for SwapMode {
 pub struct QuoteConfig {
     pub slippage_bps: Option<u64>,
     pub swap_mode: Option<SwapMode>,
-    pub dexes: Option<Vec<Pubkey>>,
-    pub exclude_dexes: Option<Vec<Pubkey>>,
+    pub dexes: Option<Vec<String>>,
+    pub exclude_dexes: Option<Vec<String>>,
     pub only_direct_routes: bool,
     pub as_legacy_transaction: Option<bool>,
     pub platform_fee_bps: Option<u64>,
