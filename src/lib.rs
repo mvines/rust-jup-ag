@@ -1,4 +1,5 @@
 use {
+    base64::prelude::{Engine as _, BASE64_STANDARD},
     itertools::Itertools,
     serde::{Deserialize, Serialize},
     solana_sdk::transaction::VersionedTransaction,
@@ -342,7 +343,7 @@ pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
     )?;
 
     fn decode(base64_transaction: String) -> Result<VersionedTransaction> {
-        bincode::deserialize(&base64::decode(base64_transaction)?).map_err(|err| err.into())
+        bincode::deserialize(&BASE64_STANDARD.decode(base64_transaction)?).map_err(|err| err.into())
     }
 
     Ok(Swap {

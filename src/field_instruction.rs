@@ -1,5 +1,6 @@
 // Deserialize Instruction with a custom function
 pub mod instruction {
+    use base64::prelude::{Engine as _, BASE64_STANDARD};
     use serde::{Deserialize, Deserializer};
     use solana_sdk::{instruction::AccountMeta, instruction::Instruction, pubkey::Pubkey};
     use std::str::FromStr;
@@ -46,7 +47,8 @@ pub mod instruction {
         let instruction = Instruction {
             program_id,
             accounts,
-            data: base64::decode(&fields.data)
+            data: BASE64_STANDARD
+                .decode(&fields.data)
                 .map_err(|e| serde::de::Error::custom(format!("Error decoding data: {}", e)))?,
         };
 
