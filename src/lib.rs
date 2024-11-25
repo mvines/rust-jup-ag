@@ -25,7 +25,7 @@ fn quote_api_url() -> String {
 
 // Reference: https://quote-api.jup.ag/docs/static/index.html
 fn price_api_url() -> String {
-    env::var("PRICE_API_URL").unwrap_or_else(|_| "https://price.jup.ag/v1".to_string())
+    env::var("PRICE_API_URL").unwrap_or_else(|_| "https://api.jup.ag/price/v2".to_string())
 }
 
 /// The Errors that may occur while using this crate
@@ -53,18 +53,30 @@ pub enum Error {
     ParseSwapMode { value: String },
 }
 
+#[derive(Clone, Debug)]
+pub struct Price {
+    pub input_mint: Pubkey,
+    pub output_mint: Pubkey,
+    pub price: f64,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Price {
-    #[serde(with = "field_as_string", rename = "id")]
-    pub input_mint: Pubkey,
-    #[serde(rename = "mintSymbol")]
-    pub input_symbol: String,
-    #[serde(with = "field_as_string", rename = "vsToken")]
-    pub output_mint: Pubkey,
-    #[serde(rename = "vsTokenSymbol")]
-    pub output_symbol: String,
-    pub price: f64,
+#[allow(dead_code)]
+pub struct PriceResponse {
+    data: HashMap<String, PriceData>,
+    time_taken: f64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[allow(dead_code)]
+struct PriceData {
+    #[serde(with = "field_as_string")]
+    id: Pubkey,
+    #[serde(rename = "type")]
+    price_type: String,
+    #[serde(with = "field_as_string")]
+    price: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -161,8 +173,8 @@ pub struct SwapInstructions {
     pub prioritization_fee_lamports: u64,
 }
 
-/// Hashmap of possible swap routes from input mint to an array of output mints
-pub type RouteMap = HashMap<Pubkey, Vec<Pubkey>>;
+/// Hashmap, which key is the program id and value is the label. This is used to help map error from transaction by identifying the fault program id. With that, we can use the excludeDexes or dexes parameter.
+pub type DexProgramIdToLabel = HashMap<Pubkey, String>;
 
 fn maybe_jupiter_api_error<T>(value: serde_json::Value) -> Result<T>
 where
@@ -182,10 +194,27 @@ where
 /// Get simple price for a given input mint, output mint, and amount
 pub async fn price(input_mint: Pubkey, output_mint: Pubkey, ui_amount: f64) -> Result<Price> {
     let url = format!(
-        "{base_url}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}",
+        "{base_url}?ids={input_mint}&vsToken={output_mint}&amount={ui_amount}",
         base_url = price_api_url(),
     );
-    maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
+
+    let response: PriceResponse = maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)?;
+
+    let input_data = response.data.get(&input_mint.to_string()).ok_or_else(|| {
+        Error::JupiterApi(format!(
+            "Input mint {} not found in response data",
+            input_mint
+        ))
+    })?;
+
+    // Calculate the amount to pay
+    let price = ui_amount * input_data.price;
+
+    Ok(Price {
+        input_mint,
+        output_mint,
+        price,
+    })
 }
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Clone, Debug)]
@@ -222,10 +251,14 @@ pub struct QuoteConfig {
     pub swap_mode: Option<SwapMode>,
     pub dexes: Option<Vec<String>>,
     pub exclude_dexes: Option<Vec<String>>,
+    pub restrict_intermediate_tokens: Option<bool>,
     pub only_direct_routes: bool,
     pub as_legacy_transaction: Option<bool>,
     pub platform_fee_bps: Option<u64>,
     pub max_accounts: Option<u64>,
+    pub auto_slippage: Option<bool>,
+    pub max_auto_slippage_bps: Option<u64>,
+    pub auto_slippage_collision_usd_value: Option<u64>,
 }
 
 /// Get quote for a given input mint, output mint, and amount
@@ -236,7 +269,7 @@ pub async fn quote(
     quote_config: QuoteConfig,
 ) -> Result<Quote> {
     let url = format!(
-        "{base_url}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}",
+        "{base_url}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}{}{}{}{}",
         quote_config.only_direct_routes,
         quote_config
             .as_legacy_transaction
@@ -263,8 +296,24 @@ pub async fn quote(
             .map(|exclude_dexes| format!("&excludeDexes={}", exclude_dexes.into_iter().join(",")))
             .unwrap_or_default(),
         quote_config
+            .restrict_intermediate_tokens
+            .map(|restrict_intermediate_tokens| format!("&restrictIntermediateTokens={restrict_intermediate_tokens}"))
+            .unwrap_or_default(),
+        quote_config
             .max_accounts
             .map(|max_accounts| format!("&maxAccounts={max_accounts}"))
+            .unwrap_or_default(),
+        quote_config
+            .auto_slippage
+            .map(|auto_slippage| format!("&autoSlippage={auto_slippage}"))
+            .unwrap_or_default(),
+        quote_config
+            .max_auto_slippage_bps
+            .map(|max_auto_slippage_bps| format!("&maxAutoSlippageBps={max_auto_slippage_bps}"))
+            .unwrap_or_default(),
+        quote_config
+            .auto_slippage_collision_usd_value
+            .map(|auto_slippage_collision_usd_value| format!("&autoSlippageCollisionUsdValue={auto_slippage_collision_usd_value}"))
             .unwrap_or_default(),
         base_url=quote_api_url(),
     );
@@ -288,6 +337,8 @@ pub struct SwapRequest {
     pub use_shared_accounts: Option<bool>,
     #[serde(with = "field_pubkey::option")]
     pub fee_account: Option<Pubkey>,
+    #[serde(with = "field_pubkey::option")]
+    pub tracking_account: Option<Pubkey>,
     #[deprecated = "please use SwapRequest::prioritization_fee_lamports instead"]
     pub compute_unit_price_micro_lamports: Option<u64>,
     #[serde(with = "field_prioritization_fee")]
@@ -296,6 +347,9 @@ pub struct SwapRequest {
     pub use_token_ledger: Option<bool>,
     #[serde(with = "field_pubkey::option")]
     pub destination_token_account: Option<Pubkey>,
+    pub dynamic_compute_unit_limit: Option<bool>,
+    pub skip_user_accounts_rpc_calls: Option<bool>,
+    pub dynamic_slippage: Option<DynamicSlippage>,
     pub quote_response: Quote,
 }
 
@@ -308,14 +362,25 @@ impl SwapRequest {
             wrap_and_unwrap_sol: Some(true),
             use_shared_accounts: Some(true),
             fee_account: None,
+            tracking_account: None,
             compute_unit_price_micro_lamports: None,
             prioritization_fee_lamports: PrioritizationFeeLamports::Auto,
             as_legacy_transaction: Some(false),
             use_token_ledger: Some(false),
             destination_token_account: None,
+            dynamic_compute_unit_limit: Some(false),
+            skip_user_accounts_rpc_calls: Some(false),
+            dynamic_slippage: None,
             quote_response,
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DynamicSlippage {
+    pub min_bps: u64,
+    pub max_bps: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -371,35 +436,52 @@ pub async fn swap_instructions(swap_request: SwapRequest) -> Result<SwapInstruct
     Ok(response.json::<SwapInstructions>().await?)
 }
 
-/// Returns a hash map, input mint as key and an array of valid output mint as values
-pub async fn route_map() -> Result<RouteMap> {
-    let url = format!(
-        "{}/indexed-route-map?onlyDirectRoutes=false",
-        quote_api_url()
-    );
+/// Get a hashmap, which key is the program id and value is the label. This is used to help map error from transaction by identifying the fault program id. With that, we can use the excludeDexes or dexes parameter.
+pub async fn program_id_to_label() -> Result<DexProgramIdToLabel> {
+    let url = format!("{}/program-id-to-label", quote_api_url());
 
-    #[derive(Debug, Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct IndexedRouteMap {
-        mint_keys: Vec<String>,
-        indexed_route_map: HashMap<usize, Vec<usize>>,
+    let response = reqwest::get(url).await?;
+
+    if !response.status().is_success() {
+        return Err(Error::JupiterApi(response.text().await?));
     }
 
-    let response = reqwest::get(url).await?.json::<IndexedRouteMap>().await?;
+    pub type DexProgramIdToLabelString = HashMap<String, String>;
+    let hashmap_string: DexProgramIdToLabelString =
+        response.json().await.map_err(Error::Reqwest)?;
 
-    let mint_keys = response
-        .mint_keys
+    let hashmap_pubkey: DexProgramIdToLabel = hashmap_string
         .into_iter()
-        .map(|x| x.parse::<Pubkey>().map_err(|err| err.into()))
-        .collect::<Result<Vec<Pubkey>>>()?;
+        .map(|(key, value)| {
+            key.parse::<Pubkey>()
+                .map(|pubkey| (pubkey, value))
+                .map_err(|e| Error::JupiterApi(format!("Invalid Pubkey in response: {}", e)))
+        })
+        .collect::<Result<_>>()?;
 
-    let mut route_map = HashMap::new();
-    for (from_index, to_indices) in response.indexed_route_map {
-        route_map.insert(
-            mint_keys[from_index],
-            to_indices.into_iter().map(|i| mint_keys[i]).collect(),
-        );
+    Ok(hashmap_pubkey)
+}
+
+/// Returns a list of all the tradable mints
+pub async fn tokens() -> Result<Vec<Pubkey>> {
+    let url = format!("{}/tokens", quote_api_url());
+
+    let response = reqwest::get(url).await?;
+
+    if !response.status().is_success() {
+        return Err(Error::JupiterApi(response.text().await?));
     }
 
-    Ok(route_map)
+    let tokens_string: Vec<String> = response.json().await.map_err(Error::Reqwest)?;
+
+    let tokens: Vec<Pubkey> = tokens_string
+        .into_iter()
+        .map(|token| {
+            token
+                .parse::<Pubkey>()
+                .map_err(|e| Error::JupiterApi(format!("Invalid Pubkey in response: {}", e)))
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(tokens)
 }

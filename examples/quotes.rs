@@ -10,14 +10,15 @@ async fn main() -> jup_ag::Result<()> {
     let usdc = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
     let sol = pubkey!("So11111111111111111111111111111111111111112");
     let msol = pubkey!("mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So");
+    let jup = pubkey!("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN");
 
     let ui_amount = 1.;
 
-    for (output_token, output_decimals) in [(usdc, 6), (msol, 9), (sol, 9)] {
+    for (output_token, output_decimals) in [(usdc, 6), (msol, 9), (jup, 9)] {
         let data = jup_ag::price(sol, output_token, ui_amount).await?;
         println!(
             "Price for {} {} is {} {}",
-            ui_amount, data.input_symbol, data.price, data.output_symbol
+            ui_amount, data.input_mint, data.price, data.output_mint
         );
 
         let slippage_bps = 100;
@@ -44,9 +45,9 @@ async fn main() -> jup_ag::Result<()> {
                 "{}. {} {} for {} {} via {} (worst case with slippage: {}). Impact: {:.2}%",
                 i,
                 amount_to_ui_amount(quote.swap_info.in_amount, 9),
-                data.input_symbol,
+                data.input_mint,
                 amount_to_ui_amount(quote.swap_info.out_amount, output_decimals),
-                data.output_symbol,
+                data.output_mint,
                 route,
                 amount_to_ui_amount(quotes.other_amount_threshold, output_decimals),
                 quotes.price_impact_pct * 100.
