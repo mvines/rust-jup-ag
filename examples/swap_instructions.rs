@@ -1,4 +1,4 @@
-use jup_ag::{QuoteConfig, SwapRequest};
+use jup_ag::{PrioritizationFeeLamports, PriorityLevel, QuoteConfig, SwapRequest};
 use solana_sdk::{pubkey, signature::Keypair, signature::Signer};
 use spl_token::{amount_to_ui_amount, ui_amount_to_amount};
 
@@ -37,7 +37,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         quotes.price_impact_pct * 100.
     );
 
-    let request: SwapRequest = SwapRequest::new(keypair.pubkey(), quotes.clone());
+    let mut request: SwapRequest = SwapRequest::new(keypair.pubkey(), quotes.clone());
+    request.prioritization_fee_lamports = PrioritizationFeeLamports::PriorityLevelWithMaxLamports {
+        priority_level: PriorityLevel::VeryHigh,
+        max_lamports: 10_000_000,
+    };
 
     let swap_instructions = jup_ag::swap_instructions(request).await?;
 
