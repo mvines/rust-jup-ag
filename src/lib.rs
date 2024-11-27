@@ -321,10 +321,31 @@ pub async fn quote(
     maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum PrioritizationFeeLamports {
+    /// Automatically sets a priority fee, capped at 5,000,000 lamports.
     Auto,
+    /// Sets an exact amount of lamports for the priority fee.
     Exact { lamports: u64 },
+    /// Uses an automatic multiplier for the aut priority fee * this amount.
+    AutoMultiplier { multiplier: u64 },
+    /// Includes a tip instruction to Jito with the specified lamports.
+    JitoTipLamports { lamports: u64 },
+    /// Suggests a priority fee based on a level with a maximum cap in lamports.
+    PriorityLevelWithMaxLamports {
+        priority_level: PriorityLevel,
+        max_lamports: u64,
+    },
+}
+
+/// Represents the priority levels for the `PriorityLevelWithMaxLamports` variant.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PriorityLevel {
+    Medium,
+    High,
+    VeryHigh,
 }
 
 #[derive(Debug, Serialize)]
