@@ -2,11 +2,8 @@ use {
     base64::prelude::{Engine as _, BASE64_STANDARD},
     itertools::Itertools,
     serde::{Deserialize, Serialize},
-    solana_sdk::transaction::VersionedTransaction,
-    solana_sdk::{
-        instruction::Instruction,
-        pubkey::{ParsePubkeyError, Pubkey},
-    },
+    solana_pubkey::{ParsePubkeyError, Pubkey},
+    solana_sdk::{instruction::Instruction, transaction::VersionedTransaction},
     std::{collections::HashMap, env, fmt, str::FromStr},
 };
 
