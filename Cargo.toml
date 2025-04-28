@@ -16,6 +16,7 @@ itertools = "0.13"
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+solana-pubkey = "2"
 solana-sdk = "2"
 thiserror = "2"
 tokio = "1"
