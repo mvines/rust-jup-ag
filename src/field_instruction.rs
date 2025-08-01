@@ -27,15 +27,14 @@ pub mod instruction {
 
         let fields = InstructionFields::deserialize(deserializer)?;
         let program_id = Pubkey::from_str(&fields.program_id)
-            .map_err(|e| serde::de::Error::custom(format!("Error parsing programId: {}", e)))?;
+            .map_err(|e| serde::de::Error::custom(format!("Error parsing programId: {e}")))?;
 
         let accounts = fields
             .accounts
             .into_iter()
             .map(|acc| {
-                let pubkey = Pubkey::from_str(&acc.pubkey).map_err(|e| {
-                    serde::de::Error::custom(format!("Error parsing pubkey: {}", e))
-                })?;
+                let pubkey = Pubkey::from_str(&acc.pubkey)
+                    .map_err(|e| serde::de::Error::custom(format!("Error parsing pubkey: {e}")))?;
                 Ok(AccountMeta {
                     pubkey,
                     is_signer: acc.is_signer,
@@ -49,7 +48,7 @@ pub mod instruction {
             accounts,
             data: BASE64_STANDARD
                 .decode(&fields.data)
-                .map_err(|e| serde::de::Error::custom(format!("Error decoding data: {}", e)))?,
+                .map_err(|e| serde::de::Error::custom(format!("Error decoding data: {e}")))?,
         };
 
         Ok(instruction)
@@ -71,10 +70,7 @@ pub mod option_instruction {
             serde_json::Value::Null => Ok(None),
             _ => crate::field_instruction::instruction::deserialize(value)
                 .map_err(|e| {
-                    serde::de::Error::custom(format!(
-                        "Error deserialize optional instruction: {}",
-                        e
-                    ))
+                    serde::de::Error::custom(format!("Error deserialize optional instruction: {e}"))
                 })
                 .map(Some),
         }
@@ -96,7 +92,7 @@ pub mod vec_instruction {
         for value in values {
             let instruction: Instruction =
                 crate::field_instruction::instruction::deserialize(value).map_err(|e| {
-                    serde::de::Error::custom(format!("Error deserialize vec instruction: {}", e))
+                    serde::de::Error::custom(format!("Error deserialize vec instruction: {e}"))
                 })?;
             instructions.push(instruction);
         }

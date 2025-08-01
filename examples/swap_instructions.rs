@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let swap_instructions = jup_ag::swap_instructions(request).await?;
 
-    println!("Swap Instructions: {:?}", swap_instructions);
+    println!("Swap Instructions: {swap_instructions:?}");
 
     Ok(())
 }
