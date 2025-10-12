@@ -15,9 +15,9 @@ mod field_pubkey;
 /// A `Result` alias where the `Err` case is `jup_ag::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-// Reference: https://quote-api.jup.ag/v4/docs/static/index.html
+// Reference: https://dev.jup.ag/docs/api/swap-api/quote
 fn quote_api_url() -> String {
-    env::var("QUOTE_API_URL").unwrap_or_else(|_| "https://quote-api.jup.ag/v6".to_string())
+    env::var("QUOTE_API_URL").unwrap_or_else(|_| "https://lite-api.jup.ag/swap/v1".to_string())
 }
 
 // Reference: https://quote-api.jup.ag/docs/static/index.html
