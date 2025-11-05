@@ -16,13 +16,13 @@ itertools = "0.13"
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-solana-pubkey = "2"
-solana-sdk = "2"
+solana-pubkey = "3"
+solana-sdk = "3"
 thiserror = "2"
 tokio = "1"
 
 [dev-dependencies]
 tokio = {version = "1", features = ["full"]}
-solana-client = "2"
-spl-associated-token-account = "6"
-spl-token = "7"
+solana-client = "3"
+spl-associated-token-account = "8"
+spl-token = "9"
