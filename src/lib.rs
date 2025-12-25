@@ -17,12 +17,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // Reference: https://dev.jup.ag/docs/api/swap-api/quote
 fn quote_api_url() -> String {
-    env::var("QUOTE_API_URL").unwrap_or_else(|_| "https://lite-api.jup.ag/swap/v1".to_string())
+    env::var("QUOTE_API_URL").unwrap_or_else(|_| "https://api.jup.ag/swap/v1".to_string())
 }
 
 // Reference: https://quote-api.jup.ag/docs/static/index.html
 fn price_api_url() -> String {
-    env::var("PRICE_API_URL").unwrap_or_else(|_| "https://price.jup.ag/v1".to_string())
+    env::var("PRICE_API_URL").unwrap_or_else(|_| "https://api.jup.ag/price/v2".to_string())
 }
 
 /// The Errors that may occur while using this crate
@@ -227,6 +227,7 @@ pub async fn quote(
     output_mint: Pubkey,
     amount: u64,
     quote_config: QuoteConfig,
+    api_key: String,
 ) -> Result<Quote> {
     let url = format!(
         "{base_url}/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&onlyDirectRoutes={}&{}{}{}{}{}{}{}",
@@ -262,7 +263,16 @@ pub async fn quote(
         base_url=quote_api_url(),
     );
 
-    maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
+    maybe_jupiter_api_error(
+        reqwest::Client::builder()
+            .build()?
+            .get(url)
+            .header("x-api-key", api_key)
+            .send()
+            .await?
+            .json()
+            .await?,
+    )
 }
 
 #[derive(Debug)]
@@ -319,7 +329,7 @@ struct SwapResponse {
 }
 
 /// Get swap serialized transactions for a quote
-pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
+pub async fn swap(swap_request: SwapRequest, api_key: String) -> Result<Swap> {
     let url = format!("{}/swap", quote_api_url());
 
     let response = maybe_jupiter_api_error::<SwapResponse>(
@@ -327,6 +337,7 @@ pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
             .build()?
             .post(url)
             .header("Accept", "application/json")
+            .header("x-api-key", api_key)
             .json(&swap_request)
             .send()
             .await?
@@ -346,13 +357,17 @@ pub async fn swap(swap_request: SwapRequest) -> Result<Swap> {
 }
 
 /// Get swap serialized transaction instructions for a quote
-pub async fn swap_instructions(swap_request: SwapRequest) -> Result<SwapInstructions> {
+pub async fn swap_instructions(
+    swap_request: SwapRequest,
+    api_key: String,
+) -> Result<SwapInstructions> {
     let url = format!("{}/swap-instructions", quote_api_url());
 
     let response = reqwest::Client::builder()
         .build()?
         .post(url)
         .header("Accept", "application/json")
+        .header("x-api-key", api_key)
         .json(&swap_request)
         .send()
         .await?;
