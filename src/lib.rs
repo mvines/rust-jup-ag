@@ -79,10 +79,10 @@ pub struct Quote {
     pub other_amount_threshold: u64,
     pub swap_mode: String,
     pub slippage_bps: u64,
-    pub platform_fee: Option<PlatformFee>,
     #[serde(with = "field_as_string")]
     pub price_impact_pct: f64,
     pub route_plan: Vec<RoutePlan>,
+    pub platform_fee: Option<PlatformFee>,
     pub context_slot: Option<u64>,
     pub time_taken: Option<f64>,
 }
@@ -107,19 +107,15 @@ pub struct RoutePlan {
 pub struct SwapInfo {
     #[serde(with = "field_as_string")]
     pub amm_key: Pubkey,
-    pub label: Option<String>,
-    #[serde(with = "field_as_string")]
-    pub input_mint: Pubkey,
-    #[serde(with = "field_as_string")]
-    pub output_mint: Pubkey,
     #[serde(with = "field_as_string")]
     pub in_amount: u64,
     #[serde(with = "field_as_string")]
+    pub input_mint: Pubkey,
+    pub label: Option<String>,
+    #[serde(with = "field_as_string")]
     pub out_amount: u64,
     #[serde(with = "field_as_string")]
-    pub fee_amount: u64,
-    #[serde(with = "field_as_string")]
-    pub fee_mint: Pubkey,
+    pub output_mint: Pubkey,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
