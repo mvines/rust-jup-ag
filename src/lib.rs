@@ -20,11 +20,6 @@ fn quote_api_url() -> String {
     env::var("QUOTE_API_URL").unwrap_or_else(|_| "https://api.jup.ag/swap/v1".to_string())
 }
 
-// Reference: https://quote-api.jup.ag/docs/static/index.html
-fn price_api_url() -> String {
-    env::var("PRICE_API_URL").unwrap_or_else(|_| "https://api.jup.ag/price/v2".to_string())
-}
-
 /// The Errors that may occur while using this crate
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -48,20 +43,6 @@ pub enum Error {
 
     #[error("parse SwapMode: Invalid value `{value}`")]
     ParseSwapMode { value: String },
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Price {
-    #[serde(with = "field_as_string", rename = "id")]
-    pub input_mint: Pubkey,
-    #[serde(rename = "mintSymbol")]
-    pub input_symbol: String,
-    #[serde(with = "field_as_string", rename = "vsToken")]
-    pub output_mint: Pubkey,
-    #[serde(rename = "vsTokenSymbol")]
-    pub output_symbol: String,
-    pub price: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -170,15 +151,6 @@ where
     } else {
         serde_json::from_value(value).map_err(|err| err.into())
     }
-}
-
-/// Get simple price for a given input mint, output mint, and amount
-pub async fn price(input_mint: Pubkey, output_mint: Pubkey, ui_amount: f64) -> Result<Price> {
-    let url = format!(
-        "{base_url}/price?id={input_mint}&vsToken={output_mint}&amount={ui_amount}",
-        base_url = price_api_url(),
-    );
-    maybe_jupiter_api_error(reqwest::get(url).await?.json().await?)
 }
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Clone, Debug)]
