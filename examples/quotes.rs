@@ -11,6 +11,8 @@ async fn main() -> jup_ag::Result<()> {
     let sol = pubkey!("So11111111111111111111111111111111111111112");
     let msol = pubkey!("mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So");
 
+    let api_key = std::env::var("JUP_API_KEY").expect("JUP_API_KEY environment variable not set");
+
     let ui_amount = 1.;
 
     for (output_token, output_decimals) in [(usdc, 6), (msol, 9), (sol, 9)] {
@@ -31,6 +33,7 @@ async fn main() -> jup_ag::Result<()> {
                 slippage_bps: Some(slippage_bps),
                 ..QuoteConfig::default()
             },
+            api_key.clone(),
         )
         .await?;
 

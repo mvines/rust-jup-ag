@@ -7,6 +7,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sol = pubkey!("So11111111111111111111111111111111111111112");
     let msol = pubkey!("mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So");
 
+    let api_key = std::env::var("JUP_API_KEY").expect("JUP_API_KEY environment variable not set");
+
     let keypair = Keypair::new();
 
     let slippage_bps = 100;
@@ -20,6 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             slippage_bps: Some(slippage_bps),
             ..QuoteConfig::default()
         },
+        api_key.clone(),
     )
     .await?;
 
@@ -39,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request: SwapRequest = SwapRequest::new(keypair.pubkey(), quotes.clone());
 
-    let swap_instructions = jup_ag::swap_instructions(request).await?;
+    let swap_instructions = jup_ag::swap_instructions(request, api_key).await?;
 
     println!("Swap Instructions: {swap_instructions:?}");
 
