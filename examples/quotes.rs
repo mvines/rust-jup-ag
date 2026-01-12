@@ -15,13 +15,8 @@ async fn main() -> jup_ag::Result<()> {
 
     let ui_amount = 1.;
 
-    for (output_token, output_decimals) in [(usdc, 6), (msol, 9), (sol, 9)] {
-        let data = jup_ag::price(sol, output_token, ui_amount).await?;
-        println!(
-            "Price for {} {} is {} {}",
-            ui_amount, data.input_symbol, data.price, data.output_symbol
-        );
-
+    for (output_token, output_token_name, output_decimals) in [(usdc, "USDC", 6), (msol, "mSOL", 9)]
+    {
         let slippage_bps = 100;
         let only_direct_routes = false;
         let quotes = jup_ag::quote(
@@ -44,12 +39,11 @@ async fn main() -> jup_ag::Result<()> {
                 .label
                 .unwrap_or_else(|| "Unknown DEX".to_string());
             println!(
-                "{}. {} {} for {} {} via {} (worst case with slippage: {}). Impact: {:.2}%",
+                "{}. {} SOL for {} {} via {} (worst case with slippage: {}). Impact: {:.2}%",
                 i,
                 amount_to_ui_amount(quote.swap_info.in_amount, 9),
-                data.input_symbol,
                 amount_to_ui_amount(quote.swap_info.out_amount, output_decimals),
-                data.output_symbol,
+                output_token_name,
                 route,
                 amount_to_ui_amount(quotes.other_amount_threshold, output_decimals),
                 quotes.price_impact_pct * 100.
