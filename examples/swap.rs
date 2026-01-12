@@ -17,6 +17,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sol = pubkey!("So11111111111111111111111111111111111111112");
     let msol = pubkey!("mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So");
 
+    let api_key = std::env::var("JUP_API_KEY").expect("JUP_API_KEY environment variable not set");
+
     let keypair = read_keypair_file("swap_example.json").unwrap_or_else(|err| {
         println!("------------------------------------------------------------------------------------------------");
         println!("Failed to read `swap_example.json`: {err}");
@@ -62,6 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             slippage_bps: Some(slippage_bps),
             ..QuoteConfig::default()
         },
+        api_key.clone(),
     )
     .await?;
 
@@ -84,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let jup_ag::Swap {
         mut swap_transaction,
         last_valid_block_height: _,
-    } = jup_ag::swap(request).await?;
+    } = jup_ag::swap(request, api_key).await?;
 
     let recent_blockhash_for_swap: Hash = rpc_client.get_latest_blockhash().await?;
     swap_transaction
